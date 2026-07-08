@@ -827,7 +827,43 @@ function addPeopleSection(container, title, ranks, topN){
   renderList();
 }
 
-loadData();
+// Hier den generierten SHA-256 Hashwert eintragen
+const CORRECT_PASSWORD_HASH = "e19f2ac7c3b8c993d3db8d90e5857f27f0faf361288e41d46583d45af28c1e4a";
+
+async function checkPassword() {
+  const input = document.getElementById("pwd-input").value;
+  const errorMsg = document.getElementById("pwd-error");
+  
+  // Passwort in SHA-256 hashen
+  const msgUint8 = new TextEncoder().encode(input);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  const inputHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  
+  if (inputHash === CORRECT_PASSWORD_HASH) {
+    // Passwort korrekt: Daten laden, Overlay entfernen, Zustand im Session-Speicher merken
+    sessionStorage.setItem("watchlist_authenticated", "true");
+    document.getElementById("password-overlay").remove();
+    loadData();
+  } else {
+    // Falsches Passwort
+    errorMsg.style.display = "block";
+    document.getElementById("pwd-input").value = "";
+    document.getElementById("pwd-input").focus();
+  }
+}
+
+// Event-Listener für Button und Enter-Taste
+document.getElementById("pwd-btn").addEventListener("click", checkPassword);
+document.getElementById("pwd-input").addEventListener("keypress", (e) => {
+  if (e.key === "Enter") checkPassword();
+});
+
+// Prüfen, ob der User in dieser Session bereits eingeloggt war
+if (sessionStorage.getItem("watchlist_authenticated") === "true") {
+  document.getElementById("password-overlay").remove();
+  loadData();
+}
 </script>
 </body>
 </html>
