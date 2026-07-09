@@ -475,34 +475,42 @@ function groupBy(arr, keyFn){
 }
 
 function openDetailsModal(entry, isCollection = false) {
-  setupModalCloseEvents(); // NEU: Aktiviert die Schließen-Events erst bei Bedarf
-  
   const modal = document.getElementById("detailsModal");
   const hero = document.getElementById("modalHero");
   const body = document.getElementById("modalBody");
+  
+  if (!modal || !hero || !body) return;
   
   hero.innerHTML = "";
   body.innerHTML = "";
 
   if (isCollection) {
-    // ── MODAL FÜR COLLECTIONS ──
     if (entry.images && entry.images[0]) {
       hero.innerHTML += `<img src="${entry.images[0]}" alt="">`;
     }
-    hero.innerHTML += `
-      <div class="modal-hero-info">
-        <div class="modal-title">${entry.title}</div>
-        <div class="modal-meta">🗂️ Collection · ${entry.itemCount} Titel</div>
-        <div class="modal-ratings">
-          ${entry.rating != null ? `<div class="modal-rating-badge personal">Median: ★ ${entry.rating.toFixed(1)}/10</div>` : ''}
-        </div>
-        <button class="btn" onclick="const link = obsidianLink('${entry.path.replace(/'/g, "\\'")}'); if(link) window.location.href=link;">📝 In Obsidian öffnen</button>
+    
+    const infoDiv = document.createElement("div");
+    infoDiv.className = "modal-hero-info";
+    infoDiv.innerHTML = `
+      <div class="modal-title">${entry.title}</div>
+      <div class="modal-meta">🗂️ Collection · ${entry.itemCount} Titel</div>
+      <div class="modal-ratings">
+        ${entry.rating != null ? `<div class="modal-rating-badge personal">Median: ★ ${entry.rating.toFixed(1)}/10</div>` : ''}
       </div>
     `;
+    
+    const obsBtn = document.createElement("button");
+    obsBtn.className = "btn";
+    obsBtn.textContent = "📝 In Obsidian öffnen";
+    obsBtn.addEventListener("click", () => {
+      const link = obsidianLink(entry.path);
+      if(link) window.location.href = link;
+    });
+    
+    infoDiv.appendChild(obsBtn);
+    hero.appendChild(infoDiv);
 
-    // Bei Collections listen wir die enthaltenen Titel auf (falls im Vault vorhanden)
     let listHtml = `<div class="modal-label" style="margin-bottom:8px">Enthaltene Titel:</div><div class="modal-collection-list">`;
-    // Wir suchen Titel im globalen Pool, die zu dieser Collection gehören (sofern über Pfad/Notiz auffindbar)
     const items = watchlistAll.filter(m => m.collections && m.collections.includes(entry.title));
     
     if (items.length > 0) {
@@ -524,15 +532,13 @@ function openDetailsModal(entry, isCollection = false) {
     body.innerHTML = listHtml;
 
   } else {
-    // ── MODAL FÜR FILME / SERIEN ──
+    // HINWEIS: Hier stand vorher fälschlicherweise eventuell noch einmal "const modal = ..."
     if (entry.image) {
       hero.innerHTML += `<img src="${entry.image}" alt="">`;
     } else {
       hero.innerHTML += `<div style="width:140px; height:210px; background:var(--panel-2); display:flex; align-items:center; justify-content:center; font-size:40px; border-radius:var(--radius)">${entry.type.split(" ")[0]}</div>`;
     }
 
-    // Ratings Zeile vorbereiten
-    // Fallback-Handling falls die Keys in data.json leicht anders heißen (z.B. onlineRating vs. online_rating)
     const onlineRating = entry.onlineRating || entry.online_rating;
     const personalRating = entry.rating || entry.personalRating || entry.personal_rating;
     
@@ -548,7 +554,6 @@ function openDetailsModal(entry, isCollection = false) {
       </div>
     `;
 
-    // Body mit Plot und Grid-Metadaten befüllen
     const plotText = entry.plot || entry.description || "Keine Beschreibung vorhanden.";
     const services = entry.streaming && entry.streaming.length ? entry.streaming.join(", ") : "Keine Dienste zugewiesen";
     const directors = entry.directors && entry.directors.length ? entry.directors.join(", ") : (entry.director || "-");
@@ -560,13 +565,10 @@ function openDetailsModal(entry, isCollection = false) {
       <div class="modal-grid-fields">
         <div class="modal-label">Streaming</div>
         <div class="modal-val">${services}</div>
-        
         <div class="modal-label">Regie</div>
         <div class="modal-val">${directors}</div>
-        
         <div class="modal-label">Drehbuch</div>
         <div class="modal-val">${writers}</div>
-        
         <div class="modal-label">Cast</div>
         <div class="modal-val">${actorsList}</div>
       </div>
