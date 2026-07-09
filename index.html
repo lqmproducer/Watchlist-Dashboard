@@ -475,6 +475,10 @@ function groupBy(arr, keyFn){
 }
 
 function openDetailsModal(entry, isCollection = false) {
+  setupModalCloseEvents(); // NEU: Aktiviert die Schließen-Events erst bei Bedarf
+  
+  const modal = document.getElementById("detailsModal");
+  const hero = document.getElementById("modalHero");
   const modal = document.getElementById("detailsModal");
   const hero = document.getElementById("modalHero");
   const body = document.getElementById("modalBody");
