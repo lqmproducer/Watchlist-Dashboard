@@ -6,6 +6,8 @@
 <title>Watchlist</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-database-compat.js"></script>
 <style>
 :root{
   --bg:            #12141a;
@@ -212,6 +214,67 @@ select.select{width:auto;padding-right:28px;cursor:pointer;}
 
 .footnote{margin-top:40px;font-size:11px;color:var(--text-faint);text-align:center;font-family:var(--font-mono);}
 
+/* ── Match-Tab ────────────────────────────────────────────── */
+.match-screen{max-width:520px;margin:0 auto;}
+.match-lobby-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:800px;margin:0 auto;}
+@media(max-width:640px){.match-lobby-grid{grid-template-columns:1fr;}}
+.match-panel{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:16px;}
+.match-label{display:block;font-size:11px;color:var(--text-faint);font-family:var(--font-mono);
+  text-transform:uppercase;letter-spacing:.05em;margin:12px 0 5px;}
+.match-label:first-of-type{margin-top:12px;}
+.match-input, .match-select{margin-bottom:0;}
+.match-btn-full{width:100%;margin-top:16px;padding:11px;font-size:13px;}
+.match-error{color:var(--red);font-size:12px;margin-top:8px;min-height:1em;}
+
+.match-roomcode{text-align:center;font-family:var(--font-mono);font-size:12px;color:var(--text-faint);margin-bottom:14px;}
+.match-roomcode span{color:var(--gold);font-weight:700;letter-spacing:.08em;}
+
+.match-progress{max-width:320px;margin:0 auto 18px;}
+.match-progress-track{height:8px;background:var(--panel-2);border-radius:99px;overflow:hidden;}
+.match-progress-fill{height:100%;background:linear-gradient(90deg,var(--amber),var(--gold));border-radius:99px;transition:width .25s;}
+.match-progress-label{text-align:center;font-family:var(--font-mono);font-size:11px;color:var(--text-faint);margin-top:6px;}
+
+.match-card-stack{position:relative;width:100%;max-width:280px;margin:0 auto;aspect-ratio:2/3;}
+.match-card{position:absolute;inset:0;background:var(--panel);border:1px solid var(--border);border-radius:var(--radius-lg);
+  overflow:hidden;box-shadow:0 12px 30px rgba(0,0,0,.4);display:flex;flex-direction:column;}
+.match-card img{width:100%;flex:1;object-fit:cover;}
+.match-card .match-card-ph{flex:1;display:flex;align-items:center;justify-content:center;font-size:44px;background:var(--panel-2);}
+.match-card-info{padding:12px;}
+.match-card-title{font-size:15px;font-weight:800;margin-bottom:3px;}
+.match-card-meta{font-size:11.5px;color:var(--text-faint);}
+.match-empty-deck{text-align:center;padding:40px 14px;color:var(--text-faint);}
+
+.match-swipe-actions{display:flex;justify-content:center;gap:22px;margin-top:20px;}
+.match-action-btn{width:60px;height:60px;border-radius:50%;border:1.5px solid var(--border);background:var(--panel);
+  font-size:24px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:transform .1s;}
+.match-action-btn:active{transform:scale(0.9);}
+.match-action-btn.match-x{color:var(--red);border-color:var(--red);}
+.match-action-btn.match-heart{color:var(--amber);border-color:var(--amber);}
+
+.match-participants{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:22px;}
+.match-participant-chip{font-size:11px;padding:5px 11px;border-radius:99px;background:var(--panel);
+  border:1px solid var(--border);color:var(--text-muted);font-family:var(--font-mono);}
+.match-participant-chip.ready{color:var(--green);border-color:var(--green);}
+
+.match-duel{display:flex;gap:14px;align-items:stretch;justify-content:center;}
+.match-duel-card{flex:1;max-width:210px;background:var(--panel);border:1.5px solid var(--border);border-radius:var(--radius);
+  overflow:hidden;cursor:pointer;transition:border-color .15s, transform .15s;}
+.match-duel-card:hover{border-color:var(--gold);transform:translateY(-3px);}
+.match-duel-card img{width:100%;aspect-ratio:2/3;object-fit:cover;display:block;}
+.match-duel-card .match-card-ph{aspect-ratio:2/3;font-size:34px;}
+.match-duel-card-info{padding:10px;}
+.match-duel-card-title{font-size:13px;font-weight:700;}
+.match-duel-vs{align-self:center;font-family:var(--font-display);font-size:22px;color:var(--text-faint);flex-shrink:0;}
+.match-duel-waiting{text-align:center;font-size:12px;color:var(--text-faint);margin-top:16px;font-family:var(--font-mono);}
+
+.match-winner-box{text-align:center;max-width:320px;margin:20px auto 0;}
+.match-winner-eyebrow{font-family:var(--font-mono);font-size:12px;color:var(--gold);letter-spacing:.08em;
+  text-transform:uppercase;margin-bottom:16px;}
+.match-winner-box img{width:220px;aspect-ratio:2/3;object-fit:cover;border-radius:var(--radius-lg);
+  box-shadow:0 16px 40px rgba(232,179,76,.25);margin-bottom:14px;border:2px solid var(--gold);}
+.match-winner-title{font-size:22px;font-weight:800;margin-bottom:4px;}
+.match-winner-meta{font-size:12px;color:var(--text-muted);margin-bottom:18px;}
+
 @media(max-width:600px){
   .masthead h1{font-size:32px;}
   .rank-sub{white-space:normal;}
@@ -238,6 +301,7 @@ select.select{width:auto;padding-right:28px;cursor:pointer;}
     <div class="ticket-tabs">
       <div class="ticket-tab active" data-tab="watchlist"><span class="n">01</span>Watchlist</div>
       <div class="ticket-tab" data-tab="uebersicht"><span class="n">02</span>Übersicht</div>
+      <div class="ticket-tab" data-tab="match"><span class="n">03</span>Match</div>
     </div>
   </div>
 
@@ -283,6 +347,97 @@ select.select{width:auto;padding-right:28px;cursor:pointer;}
   <!-- ═══════════════ ÜBERSICHT TAB ═══════════════ -->
   <div class="view" id="view-uebersicht">
     <div id="uebersichtRoot"></div>
+  </div>
+
+  <!-- ═══════════════ MATCH TAB ═══════════════ -->
+  <div class="view" id="view-match">
+
+    <!-- Screen: Firebase noch nicht konfiguriert -->
+    <div class="match-screen" id="match-noconfig">
+      <div class="empty">
+        <div class="icon">⚙️</div>
+        Match-Funktion ist noch nicht eingerichtet.<br>
+        Trag deine Firebase-Konfiguration im Skript ein (siehe README).
+      </div>
+    </div>
+
+    <!-- Screen: Lobby (Runde erstellen oder beitreten) -->
+    <div class="match-screen" id="match-lobby" style="display:none">
+      <div class="match-lobby-grid">
+
+        <div class="match-panel">
+          <div class="section-label" style="margin-top:0">🎬 Neue Runde starten</div>
+          <label class="match-label">Dein Profilname</label>
+          <input class="input match-input" id="createName" placeholder="z. B. Luka" maxlength="20">
+          <label class="match-label">Typ</label>
+          <select class="select match-select" id="createType">
+            <option value="all">Filme &amp; Serien</option>
+            <option value="film">Nur Filme</option>
+            <option value="serie">Nur Serien</option>
+          </select>
+          <label class="match-label">Genre</label>
+          <select class="select match-select" id="createGenre"><option value="all">Alle Genres</option></select>
+          <label class="match-label">Streaming-Dienst</label>
+          <select class="select match-select" id="createService"><option value="all">Alle Dienste</option></select>
+          <label class="match-label">Ziel-Likes pro Person</label>
+          <input class="input match-input" id="createGoal" type="number" value="15" min="3" max="50">
+          <button class="btn accent match-btn-full" id="createRoomBtn">🚀 Runde erstellen</button>
+          <div class="match-error" id="createError"></div>
+        </div>
+
+        <div class="match-panel">
+          <div class="section-label" style="margin-top:0">🔑 Runde beitreten</div>
+          <label class="match-label">Dein Profilname</label>
+          <input class="input match-input" id="joinName" placeholder="z. B. Anna" maxlength="20">
+          <label class="match-label">Raum-Code</label>
+          <input class="input match-input" id="joinCode" placeholder="z. B. FX7K" maxlength="8" style="text-transform:uppercase">
+          <button class="btn accent match-btn-full" id="joinRoomBtn">🔗 Beitreten</button>
+          <div class="match-error" id="joinError"></div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Screen: Swiping -->
+    <div class="match-screen" id="match-swipe" style="display:none">
+      <div class="match-roomcode">Raum-Code: <span id="swipeRoomCode"></span></div>
+      <div class="match-progress">
+        <div class="match-progress-track"><div class="match-progress-fill" id="swipeProgressFill"></div></div>
+        <div class="match-progress-label" id="swipeProgressLabel"></div>
+      </div>
+      <div class="match-card-stack" id="matchCardStack"></div>
+      <div class="match-swipe-actions">
+        <button class="match-action-btn match-x" id="swipeX">✕</button>
+        <button class="match-action-btn match-heart" id="swipeHeart">❤️</button>
+      </div>
+      <div class="match-participants" id="swipeParticipants"></div>
+    </div>
+
+    <!-- Screen: Warten auf andere -->
+    <div class="match-screen" id="match-waiting" style="display:none">
+      <div class="empty">
+        <div class="icon">⏳</div>
+        Du bist fertig! Warte auf die anderen …
+      </div>
+      <div class="match-participants" id="waitParticipants"></div>
+    </div>
+
+    <!-- Screen: Duell / Bracket -->
+    <div class="match-screen" id="match-bracket" style="display:none">
+      <div class="match-roomcode">Runde <span id="bracketRoundNum"></span> · Raum-Code: <span id="bracketRoomCode"></span></div>
+      <div class="match-duel" id="matchDuel"></div>
+      <div class="match-duel-waiting" id="duelWaiting" style="display:none">Stimme abgegeben — warte auf die anderen …</div>
+    </div>
+
+    <!-- Screen: Gewinner -->
+    <div class="match-screen" id="match-winner" style="display:none">
+      <div class="match-winner-box">
+        <div class="match-winner-eyebrow">🏆 Euer gemeinsamer Favorit</div>
+        <div id="matchWinnerCard"></div>
+        <button class="btn accent match-btn-full" id="matchAgainBtn" style="max-width:280px">↻ Neue Runde</button>
+      </div>
+    </div>
+
   </div>
 
   <div class="footnote">Read-only Ansicht deines Obsidian-Vaults · Highlights werden nur lokal in diesem Browser gespeichert, nicht in deinen Notizen</div>
@@ -337,6 +492,7 @@ async function loadData(){
   document.getElementById("genAt").textContent =
     `${total} Titel · ${DATA.collections.length} Collections`;
   initFilters();
+  initMatchFilters();
   render();
   renderUebersicht();
 }
@@ -826,6 +982,430 @@ function addPeopleSection(container, title, ranks, topN){
   });
   renderList();
 }
+
+// ═══════════════════════════════════════════════════════════
+// ─── MATCH-TAB (geräteübergreifender Swipe-Modus via Firebase) ─
+// ═══════════════════════════════════════════════════════════
+
+// Trag hier deine Firebase-Projekt-Konfiguration ein (siehe README, Abschnitt "Match-Funktion einrichten"):
+const FIREBASE_CONFIG = {
+  apiKey: "",
+  authDomain: "",
+  databaseURL: "",
+  projectId: "",
+};
+
+let matchDb = null;
+let matchRoomRef = null;
+let matchState = { room: null, name: null, pool: [], pathToEntry: {} };
+
+function initFirebase(){
+  if(!FIREBASE_CONFIG.databaseURL){
+    document.getElementById("match-noconfig").style.display = "";
+    return false;
+  }
+  try{
+    firebase.initializeApp(FIREBASE_CONFIG);
+    matchDb = firebase.database();
+    document.getElementById("match-lobby").style.display = "";
+    return true;
+  }catch(err){
+    console.error(err);
+    document.getElementById("match-noconfig").style.display = "";
+    return false;
+  }
+}
+
+function showMatchScreen(id){
+  document.querySelectorAll(".match-screen").forEach(s => s.style.display = "none");
+  document.getElementById(id).style.display = "";
+}
+
+function sanitizeKey(s){
+  return s.trim().replace(/[.#$\[\]\/]/g, "_").slice(0, 24);
+}
+function genRoomCode(){
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // ohne 0/O/1/I zur besseren Lesbarkeit
+  let code = "";
+  for(let i=0;i<4;i++) code += chars[Math.floor(Math.random()*chars.length)];
+  return code;
+}
+
+function initMatchFilters(){
+  const genres = [...new Set(watchlistAll.flatMap(e => e.genres))].sort((a,b)=>a.localeCompare(b,"de"));
+  const services = [...new Set(watchlistAll.flatMap(e => e.streaming))].sort((a,b)=>a.localeCompare(b,"de"));
+  const g = document.getElementById("createGenre");
+  genres.forEach(x => g.add(new Option(x,x)));
+  const s = document.getElementById("createService");
+  services.forEach(x => s.add(new Option(x,x)));
+}
+
+function buildMatchPool(filters){
+  return watchlistAll.filter(e => {
+    if(filters.type === "film" && e.type !== "🎬 Film") return false;
+    if(filters.type === "serie" && e.type !== "📺 Serie") return false;
+    if(filters.genre !== "all" && !e.genres.includes(filters.genre)) return false;
+    if(filters.service !== "all" && !e.streaming.includes(filters.service)) return false;
+    return true;
+  }).map(e => e.path);
+}
+
+document.getElementById("createRoomBtn").addEventListener("click", async () => {
+  const name = document.getElementById("createName").value.trim();
+  const errEl = document.getElementById("createError");
+  errEl.textContent = "";
+  if(!matchDb){ errEl.textContent = "Match-Funktion ist nicht eingerichtet."; return; }
+  if(!name){ errEl.textContent = "Bitte einen Profilnamen eingeben."; return; }
+  const filters = {
+    type: document.getElementById("createType").value,
+    genre: document.getElementById("createGenre").value,
+    service: document.getElementById("createService").value,
+  };
+  const goal = Math.max(3, parseInt(document.getElementById("createGoal").value) || 15);
+  const poolPaths = buildMatchPool(filters);
+  if(poolPaths.length < 4){ errEl.textContent = "Zu wenige Titel mit diesen Filtern (mind. 4 nötig)."; return; }
+
+  const code = genRoomCode();
+  const pool = {};
+  poolPaths.forEach((p, i) => pool[i] = p);
+
+  try{
+    await matchDb.ref("rooms/" + code).set({
+      createdAt: Date.now(),
+      filters, likeGoal: goal, pool,
+      phase: "swiping",
+      participants: {},
+    });
+    await joinExistingRoom(code, name);
+  }catch(err){
+    console.error(err);
+    errEl.textContent = "Fehler beim Erstellen — Firebase-Konfiguration prüfen.";
+  }
+});
+
+document.getElementById("joinRoomBtn").addEventListener("click", async () => {
+  const name = document.getElementById("joinName").value.trim();
+  const code = document.getElementById("joinCode").value.trim().toUpperCase();
+  const errEl = document.getElementById("joinError");
+  errEl.textContent = "";
+  if(!matchDb){ errEl.textContent = "Match-Funktion ist nicht eingerichtet."; return; }
+  if(!name || !code){ errEl.textContent = "Bitte Profilname und Raum-Code eingeben."; return; }
+  try{
+    const snap = await matchDb.ref("rooms/" + code).once("value");
+    if(!snap.exists()){ errEl.textContent = "Diesen Raum-Code gibt es nicht."; return; }
+    await joinExistingRoom(code, name);
+  }catch(err){
+    console.error(err);
+    errEl.textContent = "Fehler beim Beitreten — Firebase-Konfiguration prüfen.";
+  }
+});
+
+async function joinExistingRoom(code, name){
+  const key = sanitizeKey(name);
+  matchState.room = code;
+  matchState.name = key;
+  const snap = await matchDb.ref("rooms/" + code).once("value");
+  const room = snap.val();
+  matchState.pool = Object.entries(room.pool || {});
+  matchState.pathToEntry = {};
+  watchlistAll.forEach(e => matchState.pathToEntry[e.path] = e);
+
+  const existing = room.participants && room.participants[key];
+  if(!existing){
+    await matchDb.ref(`rooms/${code}/participants/${key}`).set({
+      joinedAt: Date.now(), swiped: {}, likeCount: 0, ready: false,
+    });
+  }
+  attachRoomListener(code);
+}
+
+function attachRoomListener(code){
+  if(matchRoomRef) matchRoomRef.off();
+  matchRoomRef = matchDb.ref("rooms/" + code);
+  matchRoomRef.on("value", snap => {
+    const room = snap.val();
+    if(room) handleRoomUpdate(room);
+  });
+}
+
+function getEntry(path){ return matchState.pathToEntry[path] || null; }
+
+function renderMiniCard(container, entry){
+  container.innerHTML = "";
+  if(entry && entry.image){
+    const img = document.createElement("img");
+    img.src = entry.image; img.loading = "lazy";
+    container.appendChild(img);
+  } else {
+    const ph = document.createElement("div");
+    ph.className = "match-card-ph";
+    ph.textContent = entry ? entry.type.split(" ")[0] : "🎬";
+    container.appendChild(ph);
+  }
+}
+
+// ── Haupt-Dispatcher: reagiert auf jede Änderung im Raum ──
+function handleRoomUpdate(room){
+  const me = room.participants && room.participants[matchState.name];
+  if(!me) return;
+
+  if(room.phase === "swiping"){
+    if(me.ready){
+      renderParticipants("waitParticipants", room.participants, room.likeGoal);
+      showMatchScreen("match-waiting");
+    } else {
+      renderSwipeScreen(room, me);
+      showMatchScreen("match-swipe");
+    }
+    maybeAdvanceToBracket(room);
+  } else if(room.phase === "bracket"){
+    renderBracketScreen(room);
+    showMatchScreen("match-bracket");
+    maybeAdvanceBracketRound(room);
+  } else if(room.phase === "done"){
+    renderWinnerScreen(room);
+    showMatchScreen("match-winner");
+  }
+}
+
+// ── Swipe-Screen ──
+function renderSwipeScreen(room, me){
+  document.getElementById("swipeRoomCode").textContent = matchState.room;
+  const goal = room.likeGoal;
+  const likeCount = me.likeCount || 0;
+  document.getElementById("swipeProgressFill").style.width = Math.min(100, (likeCount/goal)*100) + "%";
+  document.getElementById("swipeProgressLabel").textContent = `❤️ ${likeCount} / ${goal}`;
+  renderParticipants("swipeParticipants", room.participants, goal);
+
+  const swiped = me.swiped || {};
+  const poolKeys = Object.keys(room.pool);
+  const nextIdx = poolKeys.find(idx => swiped[idx] === undefined);
+  const stack = document.getElementById("matchCardStack");
+  stack.innerHTML = "";
+  if(nextIdx === undefined){
+    stack.innerHTML = `<div class="match-empty-deck">🎬 Keine weiteren Titel mehr im Pool.<br>Du hast ${likeCount} von ${goal} Likes.</div>`;
+    markReady();
+    return;
+  }
+  const entry = getEntry(room.pool[nextIdx]);
+  const card = document.createElement("div");
+  card.className = "match-card";
+  card.dataset.idx = nextIdx;
+  const imgWrap = document.createElement("div");
+  imgWrap.style.cssText = "flex:1;display:flex;min-height:0;overflow:hidden;";
+  renderMiniCard(imgWrap, entry);
+  card.appendChild(imgWrap);
+  const info = document.createElement("div");
+  info.className = "match-card-info";
+  info.innerHTML = entry ? `
+    <div class="match-card-title">${entry.title}</div>
+    <div class="match-card-meta">${[entry.type, entry.year, entry.genres.slice(0,2).join(", ")].filter(Boolean).join(" · ")}</div>` : "";
+  card.appendChild(info);
+  stack.appendChild(card);
+}
+
+async function doSwipe(liked){
+  const card = document.querySelector("#matchCardStack .match-card");
+  if(!card) return;
+  const idx = card.dataset.idx;
+  const room = matchState.room, name = matchState.name;
+  await matchDb.ref(`rooms/${room}/participants/${name}/swiped/${idx}`).set(liked ? "like" : "dislike");
+  if(liked){
+    await matchDb.ref(`rooms/${room}/participants/${name}/likeCount`).transaction(v => (v||0)+1);
+  }
+}
+document.getElementById("swipeHeart").addEventListener("click", () => doSwipe(true));
+document.getElementById("swipeX").addEventListener("click", () => doSwipe(false));
+
+async function markReady(){
+  const ref = matchDb.ref(`rooms/${matchState.room}/participants/${matchState.name}/ready`);
+  const snap = await ref.once("value");
+  if(snap.val() !== true) await ref.set(true);
+}
+
+function renderParticipants(containerId, participants, goal){
+  const el = document.getElementById(containerId);
+  el.innerHTML = "";
+  Object.entries(participants || {}).forEach(([name, p]) => {
+    const chip = document.createElement("div");
+    chip.className = "match-participant-chip" + (p.ready ? " ready" : "");
+    chip.textContent = p.ready ? `✅ ${name}` : `${name} ❤️${p.likeCount||0}/${goal}`;
+    el.appendChild(chip);
+  });
+}
+
+// ── Übergang Swiping → Bracket (deterministisch, per Transaction konfliktfrei) ──
+async function maybeAdvanceToBracket(room){
+  const participants = room.participants || {};
+  const names = Object.keys(participants);
+  if(names.length === 0 || !names.every(n => participants[n].ready)) return;
+
+  const poolEntries = Object.entries(room.pool || {});
+  let matches = poolEntries
+    .filter(([idx]) => names.every(n => (participants[n].swiped||{})[idx] === "like"))
+    .map(([idx]) => idx);
+  if(matches.length === 0){
+    const counts = poolEntries.map(([idx]) => [idx, names.filter(n => (participants[n].swiped||{})[idx] === "like").length]);
+    const maxCount = Math.max(0, ...counts.map(c => c[1]));
+    if(maxCount > 0) matches = counts.filter(c => c[1] === maxCount).map(c => c[0]);
+  }
+  if(matches.length === 0){
+    matches = poolEntries.slice(0, Math.min(8, poolEntries.length)).map(([idx]) => idx);
+  }
+  matches.sort((a,b) => parseInt(a)-parseInt(b));
+
+  await matchDb.ref(`rooms/${matchState.room}/phase`).transaction(
+    cur => (cur === "swiping" ? "bracket" : undefined),
+    async (err, committed) => {
+      if(!committed) return;
+      if(matches.length === 1){
+        await matchDb.ref(`rooms/${matchState.room}`).update({phase:"done", winner: matches[0]});
+      } else {
+        const pairs = {};
+        for(let i=0;i<matches.length;i+=2){
+          const b = matches[i+1] !== undefined ? matches[i+1] : null;
+          pairs[i/2] = { a: matches[i], b, votes: {}, winner: b === null ? matches[i] : null };
+        }
+        await matchDb.ref(`rooms/${matchState.room}/bracket`).set({ round: 1, pairs });
+      }
+    }
+  );
+}
+
+// ── Bracket-Screen ──
+function renderBracketScreen(room){
+  document.getElementById("bracketRoomCode").textContent = matchState.room;
+  document.getElementById("bracketRoundNum").textContent = room.bracket ? room.bracket.round : 1;
+  const pairs = (room.bracket && room.bracket.pairs) || {};
+  const name = matchState.name;
+  const myPairKey = Object.keys(pairs).find(k => pairs[k].winner === null && !(pairs[k].votes||{})[name]);
+
+  const duelEl = document.getElementById("matchDuel");
+  const waitEl = document.getElementById("duelWaiting");
+
+  if(myPairKey === undefined){
+    duelEl.innerHTML = "";
+    waitEl.style.display = "";
+    return;
+  }
+  waitEl.style.display = "none";
+  const pair = pairs[myPairKey];
+  const entryA = getEntry(room.pool[pair.a]);
+  const entryB = pair.b !== null ? getEntry(room.pool[pair.b]) : null;
+
+  duelEl.innerHTML = "";
+  duelEl.appendChild(makeDuelCard(entryA, pair.a, myPairKey));
+  const vs = document.createElement("div");
+  vs.className = "match-duel-vs";
+  vs.textContent = "VS";
+  duelEl.appendChild(vs);
+  if(entryB) duelEl.appendChild(makeDuelCard(entryB, pair.b, myPairKey));
+}
+
+function makeDuelCard(entry, idx, pairKey){
+  const card = document.createElement("div");
+  card.className = "match-duel-card";
+  const imgWrap = document.createElement("div");
+  renderMiniCard(imgWrap, entry);
+  card.appendChild(imgWrap);
+  const info = document.createElement("div");
+  info.className = "match-duel-card-info";
+  info.innerHTML = entry ? `<div class="match-duel-card-title">${entry.title}</div>` : "";
+  card.appendChild(info);
+  card.addEventListener("click", () => castVote(pairKey, idx));
+  return card;
+}
+
+async function castVote(pairKey, idx){
+  await matchDb.ref(`rooms/${matchState.room}/bracket/pairs/${pairKey}/votes/${matchState.name}`).set(idx);
+}
+
+// ── Übergang Duell-Runde → nächste Runde (jeder Client berechnet dasselbe Ergebnis) ──
+async function maybeAdvanceBracketRound(room){
+  const participants = room.participants || {};
+  const names = Object.keys(participants);
+  const pairs = (room.bracket && room.bracket.pairs) || {};
+  const pairKeys = Object.keys(pairs);
+  if(pairKeys.length === 0) return;
+
+  const updates = {};
+  let changed = false;
+  pairKeys.forEach(k => {
+    const pair = pairs[k];
+    if(pair.winner !== null || pair.b === null) return;
+    const votes = pair.votes || {};
+    if(names.every(n => votes[n] !== undefined)){
+      const countA = Object.values(votes).filter(v => v === pair.a).length;
+      const countB = Object.values(votes).filter(v => v === pair.b).length;
+      updates[`bracket/pairs/${k}/winner`] = countA >= countB ? pair.a : pair.b; // Gleichstand: niedrigerer Index gewinnt
+      changed = true;
+    }
+  });
+  if(changed){
+    await matchDb.ref(`rooms/${matchState.room}`).update(updates);
+    return;
+  }
+
+  if(!pairKeys.every(k => pairs[k].winner !== null)) return;
+
+  const winners = pairKeys.map(k => pairs[k].winner).sort((a,b) => parseInt(a)-parseInt(b));
+  if(winners.length === 1){
+    await matchDb.ref(`rooms/${matchState.room}/phase`).transaction(
+      cur => (cur === "bracket" ? "done" : undefined),
+      async (err, committed) => {
+        if(committed) await matchDb.ref(`rooms/${matchState.room}/winner`).set(winners[0]);
+      }
+    );
+    return;
+  }
+
+  const currentRound = room.bracket.round;
+  await matchDb.ref(`rooms/${matchState.room}/bracket/round`).transaction(
+    cur => (cur === currentRound ? cur + 1 : undefined),
+    async (err, committed) => {
+      if(!committed) return;
+      const newPairs = {};
+      for(let i=0;i<winners.length;i+=2){
+        const b = winners[i+1] !== undefined ? winners[i+1] : null;
+        newPairs[i/2] = { a: winners[i], b, votes: {}, winner: b === null ? winners[i] : null };
+      }
+      await matchDb.ref(`rooms/${matchState.room}/bracket/pairs`).set(newPairs);
+    }
+  );
+}
+
+// ── Gewinner-Screen ──
+function renderWinnerScreen(room){
+  const entry = getEntry(room.pool[room.winner]);
+  const el = document.getElementById("matchWinnerCard");
+  el.innerHTML = "";
+  if(entry){
+    if(entry.image){
+      const img = document.createElement("img");
+      img.src = entry.image;
+      el.appendChild(img);
+    }
+    const title = document.createElement("div");
+    title.className = "match-winner-title";
+    title.textContent = entry.title;
+    el.appendChild(title);
+    const meta = document.createElement("div");
+    meta.className = "match-winner-meta";
+    meta.textContent = [entry.type, entry.year, entry.rating ? `★ ${entry.rating}/10` : ""].filter(Boolean).join(" · ");
+    el.appendChild(meta);
+  }
+}
+
+document.getElementById("matchAgainBtn").addEventListener("click", () => {
+  if(matchRoomRef) matchRoomRef.off();
+  matchState = { room: null, name: null, pool: [], pathToEntry: {} };
+  document.getElementById("createName").value = "";
+  document.getElementById("joinName").value = "";
+  document.getElementById("joinCode").value = "";
+  showMatchScreen("match-lobby");
+});
+
+initFirebase();
 
 // Hier den generierten SHA-256 Hashwert eintragen
 const CORRECT_PASSWORD_HASH = "21000307278cbd30c1b3aeda11601b294b0f58501a96b7024e16bcec854c2f3d";
