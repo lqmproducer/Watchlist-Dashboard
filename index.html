@@ -1048,6 +1048,12 @@ function buildMatchPool(filters){
     if(filters.service !== "all" && !e.streaming.includes(filters.service)) return false;
     return true;
   }).map(e => e.path);
+  // Einfacher Fisher-Yates-Shuffle für eine echte Zufallsreihenfolge
+  for (let i = filteredPaths.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [filteredPaths[i], filteredPaths[j]] = [filteredPaths[j], filteredPaths[i]];
+  }
+  return filteredPaths;
 }
 
 document.getElementById("createRoomBtn").addEventListener("click", async () => {
