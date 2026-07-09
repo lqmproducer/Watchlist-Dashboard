@@ -1188,7 +1188,7 @@ function renderSwipeScreen(room, me){
   const nextIdx = poolKeys.find(idx => swiped[idx] === undefined);
   const stack = document.getElementById("matchCardStack");
   stack.innerHTML = "";
-  if(nextIdx === undefined){
+  if(likeCount >= goal || nextIdx === undefined){
     stack.innerHTML = `<div class="match-empty-deck">🎬 Keine weiteren Titel mehr im Pool.<br>Du hast ${likeCount} von ${goal} Likes.</div>`;
     markReady();
     return;
