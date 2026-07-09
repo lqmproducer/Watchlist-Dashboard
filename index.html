@@ -8,7 +8,562 @@
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
-:root{\n  --bg:            #12141a;\n  --panel:         #191c24;\n  --panel-2:       #1f2330;\n  --border:        #2a2e3c;\n  --text:          #edeff4;\n  --text-muted:    #8b90a5;\n  --text-faint:    #565b70;\n  --gold:          #e8b34c;\n  --teal:          #4fa8a0;\n  --amber:         #d98f3f;\n  --green:         #3fa679;\n  --red:           #e2574c;\n  --grey:          #6b7080;\n  --radius:        10px;\n  --radius-sm:     6px;\n  --font-sans:     'Inter', sans-serif;\n  --font-heading:  'Bebas Neue', sans-serif;\n  --font-mono:     'IBM Plex Mono', monospace;\n}\n*{\n  box-sizing: border-box;\n  margin: 0;\n  padding: 0;\n}\nbody{\n  background-color: var(--bg);\n  color: var(--text);\n  font-family: var(--font-sans);\n  padding-bottom: 80px;\n  -webkit-tap-highlight-color: transparent;\n}\nheader{\n  background-color: var(--panel);\n  border-bottom: 1px solid var(--border);\n  padding: 15px 20px;\n  display: flex;\n  justify-content: space-between;\n  align-items: center;\n  position: sticky;\n  top: 0;\n  z-index: 100;\n}\nh1{\n  font-family: var(--font-heading);\n  font-size: 28px;\n  letter-spacing: 1px;\n  color: var(--text);\n  display: flex;\n  align-items: center;\n  gap: 8px;\n}\nh1 span{\n  color: var(--gold);\n}\n.stats-badge{\n  background-color: var(--panel-2);\n  border: 1px solid var(--border);\n  padding: 6px 12px;\n  border-radius: var(--radius-sm);\n  font-family: var(--font-mono);\n  font-size: 12px;\n  color: var(--text-muted);\n}\n.stats-badge strong{\n  color: var(--gold);\n}\n.tabs{\n  display: flex;\n  background-color: var(--panel);\n  border-bottom: 1px solid var(--border);\n  position: sticky;\n  top: 69px;\n  z-index: 99;\n}\n.tab-btn{\n  flex: 1;\n  background: none;\n  border: none;\n  color: var(--text-faint);\n  padding: 14px 0;\n  font-size: 13px;\n  font-weight: 600;\n  cursor: pointer;\n  transition: all 0.2s;\n  text-align: center;\n  border-bottom: 2px solid transparent;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  gap: 6px;\n}\n.tab-btn.active{\n  color: var(--gold);\n  border-bottom-color: var(--gold);\n  background-color: rgba(232,179,76,0.03);\n}\n.container{\n  max-width: 800px;\n  margin: 0 auto;\n  padding: 20px;\n}\n.page{\n  display: none;\n}\n.page.active{\n  display: block;\n}\n.search-container{\n  position: relative;\n  margin-bottom: 20px;\n}\n.search-input{\n  width: 100%;\n  background-color: var(--panel);\n  border: 1px solid var(--border);\n  border-radius: var(--radius);\n  padding: 12px 16px 12px 40px;\n  color: var(--text);\n  font-family: var(--font-sans);\n  font-size: 14px;\n  outline: none;\n  transition: border-color 0.2s;\n}\n.search-input:focus{\n  border-color: var(--gold);\n}\n.search-icon{\n  position: absolute;\n  left: 14px;\n  top: 50%;\n  transform: translateY(-50%);\n  color: var(--text-faint);\n  pointer-events: none;\n}\n.filter-tags{\n  display: flex;\n  gap: 8px;\n  overflow-x: auto;\n  padding-bottom: 4px;\n  margin-bottom: 20px;\n  scrollbar-width: none;\n}\n.filter-tags::-webkit-scrollbar{\n  display: none;\n}\n.tag-btn{\n  background-color: var(--panel);\n  border: 1px solid var(--border);\n  color: var(--text-muted);\n  padding: 6px 14px;\n  border-radius: 20px;\n  font-size: 12px;\n  font-weight: 500;\n  cursor: pointer;\n  white-space: nowrap;\n  transition: all 0.2s;\n}\n.tag-btn.active{\n  background-color: var(--gold);\n  border-color: var(--gold);\n  color: var(--bg);\n  font-weight: 600;\n}\n.list-grid{\n  display: flex;\n  flex-direction: column;\n  gap: 12px;\n}\n.card{\n  background-color: var(--panel);\n  border: 1px solid var(--border);\n  border-radius: var(--radius);\n  padding: 14px;\n  display: flex;\n  gap: 14px;\n  position: relative;\n  overflow: hidden;\n  transition: transform 0.2s, border-color 0.2s;\n}\n.card:active{\n  transform: scale(0.99);\n}\n.card-poster{\n  width: 70px;\n  height: 100px;\n  background-color: var(--panel-2);\n  border-radius: var(--radius-sm);\n  object-fit: cover;\n  flex-shrink: 0;\n  border: 1px solid rgba(255,255,255,0.05);\n}\n.card-content{\n  flex: 1;\n  display: flex;\n  flex-direction: column;\n  justify-content: space-between;\n  min-width: 0;\n}\n.card-header{\n  display: flex;\n  justify-content: space-between;\n  align-items: flex-start;\n  gap: 8px;\n}\n.card-title{\n  font-size: 16px;\n  font-weight: 700;\n  color: var(--text);\n  white-space: nowrap;\n  overflow: hidden;\n  text-overflow: ellipsis;\n}\n.card-meta{\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  font-family: var(--font-mono);\n  font-size: 12px;\n  color: var(--text-muted);\n  margin-top: 2px;\n}\n.type-badge{\n  font-size: 10px;\n  font-weight: 700;\n  text-transform: uppercase;\n  padding: 1px 4px;\n  border-radius: 3px;\n}\n.type-movie{ background-color: rgba(79,168,160,0.15); color: var(--teal); }\n.type-show{ background-color: rgba(217,143,63,0.15); color: var(--amber); }\n.card-genres{\n  font-size: 12px;\n  color: var(--text-faint);\n  margin-top: 4px;\n  white-space: nowrap;\n  overflow: hidden;\n  text-overflow: ellipsis;\n}\n.card-footer{\n  display: flex;\n  justify-content: space-between;\n  align-items: center;\n  margin-top: 8px;\n}\n.card-vault{\n  font-size: 11px;\n  color: var(--text-muted);\n  background-color: var(--panel-2);\n  padding: 2px 6px;\n  border-radius: 4px;\n  max-width: 150px;\n  overflow: hidden;\n  text-overflow: ellipsis;\n  white-space: nowrap;\n}\n.status-select-wrapper{\n  position: relative;\n}\n.status-select{\n  appearance: none;\n  background-color: var(--panel-2);\n  border: 1px solid var(--border);\n  color: var(--text-muted);\n  padding: 5px 24px 5px 10px;\n  border-radius: var(--radius-sm);\n  font-size: 12px;\n  font-weight: 500;\n  outline: none;\n  cursor: pointer;\n}\n.status-select:focus{\n  border-color: var(--gold);\n  color: var(--text);\n}\n.status-select-wrapper::after{\n  content: '▾';\n  position: absolute;\n  right: 10px;\n  top: 50%;\n  transform: translateY(-50%);\n  font-size: 10px;\n  color: var(--text-faint);\n  pointer-events: none;\n}\n.status-select[data-status="wahr"] { color: var(--gold); border-color: rgba(232,179,76,0.3); }\n.status-select[data-status="offen"] { color: var(--text-muted); }\n.status-select[data-status="archiv"] { color: var(--text-faint); }\n\n.empty-state{\n  text-align: center;\n  padding: 40px 20px;\n  color: var(--text-faint);\n  font-size: 14px;\n}\n\n.stats-container{\n  display: flex;\n  flex-direction: column;\n  gap: 16px;\n}\n.stats-row{\n  display: flex;\n  gap: 12px;\n}\n.stat-card{\n  flex: 1;\n  background-color: var(--panel);\n  border: 1px solid var(--border);\n  border-radius: var(--radius);\n  padding: 16px;\n  text-align: center;\n}\n.stat-val{\n  font-family: var(--font-heading);\n  font-size: 36px;\n  color: var(--gold);\n  line-height: 1;\n  margin-bottom: 4px;\n}\n.stat-lbl{\n  font-size: 12px;\n  color: var(--text-muted);\n  text-transform: uppercase;\n  letter-spacing: 0.5px;\n}\n.chart-card{\n  background-color: var(--panel);\n  border: 1px solid var(--border);\n  border-radius: var(--radius);\n  padding: 16px;\n}\n.chart-title{\n  font-size: 14px;\n  font-weight: 600;\n  color: var(--text-muted);\n  margin-bottom: 14px;\n}\n.bar-list{\n  display: flex;\n  flex-direction: column;\n  gap: 10px;\n}\n.bar-item{\n  display: flex;\n  align-items: center;\n  gap: 10px;\n  font-size: 12px;\n}\n.bar-name{\n  width: 90px;\n  color: var(--text);\n  white-space: nowrap;\n  overflow: hidden;\n  text-overflow: ellipsis;\n}\n.bar-track{\n  flex: 1;\n  height: 8px;\n  background-color: var(--panel-2);\n  border-radius: 4px;\n  overflow: hidden;\n}\n.bar-fill{\n  height: 100%;\n  background-color: var(--teal);\n  border-radius: 4px;\n  width: 0%;\n  transition: width 0.6s ease-out;\n}\n.bar-count{\n  width: 24px;\n  text-align: right;\n  color: var(--text-muted);\n  font-family: var(--font-mono);\n}\n\n.match-box{\n  background-color: var(--panel);\n  border: 1px solid var(--border);\n  border-radius: var(--radius);\n  padding: 20px;\n  text-align: center;\n}\n.match-input-group{\n  display: flex;\n  flex-direction: column;\n  gap: 12px;\n  margin-top: 15px;\n}\n.match-btn{\n  background-color: var(--gold);\n  color: var(--bg);\n  border: none;\n  padding: 12px;\n  border-radius: var(--radius);\n  font-weight: 700;\n  font-size: 14px;\n  cursor: pointer;\n  transition: background-color 0.2s;\n}\n.match-btn:hover{\n  background-color: #d6a23c;\n}\n.match-btn-secondary{\n  background-color: var(--panel-2);\n  color: var(--text);\n  border: 1px solid var(--border);\n  padding: 12px;\n  border-radius: var(--radius);\n  font-weight: 600;\n  font-size: 14px;\n  cursor: pointer;\n}\n.match-card-container{\n  position: relative;\n  height: 380px;\n  margin: 20px 0;\n  perspective: 1000px;\n}\n.match-card{\n  position: absolute;\n  width: 100%;\n  height: 100%;\n  background-color: var(--panel-2);\n  border: 1px solid var(--border);\n  border-radius: var(--radius);\n  padding: 20px;\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  justify-content: space-between;\n  box-shadow: 0 10px 25px rgba(0,0,0,0.3);\n}\n.match-poster{\n  width: 160px;\n  height: 230px;\n  object-fit: cover;\n  border-radius: var(--radius);\n  border: 1px solid rgba(255,255,255,0.1);\n}\n.match-actions{\n  display: flex;\n  justify-content: center;\n  gap: 20px;\n  margin-top: 15px;\n}\n.action-btn{\n  width: 60px;\n  height: 60px;\n  border-radius: 50%;\n  border: none;\n  cursor: pointer;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  font-size: 24px;\n  transition: transform 0.1s;\n}\n.action-btn:active{\n  transform: scale(0.9);\n}\n.btn-dislike{ background-color: rgba(226,87,76,0.15); color: var(--red); border: 1px solid rgba(226,87,76,0.3); }\n.btn-like{ background-color: rgba(63,166,121,0.15); color: var(--green); border: 1px solid rgba(63,166,121,0.3); }\n\n.overlay{\n  position: fixed;\n  top: 0; left: 0; right: 0; bottom: 0;\n  background-color: rgba(18,20,26,0.95);\n  z-index: 200;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  padding: 20px;\n}\n.overlay-box{\n  background-color: var(--panel);\n  border: 1px solid var(--border);\n  border-radius: var(--radius);\n  padding: 24px;\n  width: 100%;\n  max-width: 400px;\n  text-align: center;\n  box-shadow: 0 20px 40px rgba(0,0,0,0.5);\n}\n.overlay-title{\n  font-family: var(--font-heading);\n  font-size: 32px;\n  color: var(--gold);\n  margin-bottom: 8px;\n}\n.overlay-input{\n  width: 100%;\n  background-color: var(--panel-2);\n  border: 1px solid var(--border);\n  border-radius: var(--radius-sm);\n  padding: 12px;\n  color: var(--text);\n  font-family: var(--font-mono);\n  font-size: 16px;\n  text-align: center;\n  outline: none;\n  margin: 15px 0;\n}\n.overlay-input:focus{\n  border-color: var(--gold);\n}\n.error-msg{\n  color: var(--red);\n  font-size: 13px;\n  margin-top: -8px;\n  margin-bottom: 10px;\n  display: none;\n}\n\n.match-overlay {\n  background: radial-gradient(circle, rgba(25,28,36,0.98) 0%, rgba(18,20,26,0.99) 100%);\n}\n.match-title-animation {\n  font-family: var(--font-heading);\n  font-size: 56px;\n  color: var(--gold);\n  text-transform: uppercase;\n  letter-spacing: 2px;\n  margin-bottom: 20px;\n  animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);\n}\n@keyframes popIn {\n  0% { transform: scale(0.5); opacity: 0; }\n  100% { transform: scale(1); opacity: 1; }\n}\n\n.nav-bar{\n  position: fixed;\n  bottom: 0; left: 0; right: 0;\n  background-color: var(--panel);\n  border-top: 1px solid var(--border);\n  display: flex;\n  z-index: 100;\n}\n.nav-item{\n  flex: 1;\n  background: none;\n  border: none;\n  color: var(--text-faint);\n  padding: 12px 0;\n  font-size: 11px;\n  font-weight: 600;\n  cursor: pointer;\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  gap: 4px;\n  transition: color 0.2s;\n}\n.nav-item svg{\n  width: 20px;\n  height: 20px;\n  fill: currentColor;\n}\n.nav-item.active{\n  color: var(--gold);\n}\n</style>
+:root{
+  --bg:            #12141a;
+  --panel:         #191c24;
+  --panel-2:       #1f2330;
+  --border:        #2a2e3c;
+  --text:          #edeff4;
+  --text-muted:    #8b90a5;
+  --text-faint:    #565b70;
+  --gold:          #e8b34c;
+  --teal:          #4fa8a0;
+  --amber:         #d98f3f;
+  --green:         #3fa679;
+  --red:           #e2574c;
+  --grey:          #6b7080;
+  --radius:        10px;
+  --radius-sm:     6px;
+  --font-sans:     'Inter', sans-serif;
+  --font-heading:  'Bebas Neue', sans-serif;
+  --font-mono:     'IBM Plex Mono', monospace;
+}
+*{
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+body{\n  background-color: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  padding-bottom: 80px;
+  -webkit-tap-highlight-color: transparent;
+}
+header{
+  background-color: var(--panel);
+  border-bottom: 1px solid var(--border);
+  padding: 15px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+h1{
+  font-family: var(--font-heading);
+  font-size: 28px;
+  letter-spacing: 1px;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+h1 span{
+  color: var(--gold);
+}
+.stats-badge{
+  background-color: var(--panel-2);
+  border: 1px solid var(--border);
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.stats-badge strong{\n  color: var(--gold);
+}
+.tabs{
+  display: flex;
+  background-color: var(--panel);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 69px;
+  z-index: 99;
+}
+.tab-btn{
+  flex: 1;
+  background: none;
+  border: none;
+  color: var(--text-faint);
+  padding: 14px 0;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: center;
+  border-bottom: 2px solid transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.tab-btn.active{
+  color: var(--gold);
+  border-bottom-color: var(--gold);
+  background-color: rgba(232,179,76,0.03);
+}
+.container{
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px;
+}
+.page{
+  display: none;
+}
+.page.active{
+  display: block;
+}
+.search-container{
+  position: relative;
+  margin-bottom: 20px;
+}
+.search-input{
+  width: 100%;
+  background-color: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 16px 12px 40px;
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.search-input:focus{
+  border-color: var(--gold);
+}
+.search-icon{
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-faint);
+  pointer-events: none;
+}
+.filter-tags{
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  margin-bottom: 20px;
+  scrollbar-width: none;
+}
+.filter-tags::-webkit-scrollbar{
+  display: none;
+}
+.tag-btn{
+  background-color: var(--panel);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s;
+}
+.tag-btn.active{
+  background-color: var(--gold);
+  border-color: var(--gold);
+  color: var(--bg);
+  font-weight: 600;
+}
+.list-grid{
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.card{
+  background-color: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px;
+  display: flex;
+  gap: 14px;
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.2s, border-color 0.2s;
+}
+.card:active{\n  transform: scale(0.99);
+}
+.card-poster{
+  width: 70px;
+  height: 100px;
+  background-color: var(--panel-2);
+  border-radius: var(--radius-sm);
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 1px solid rgba(255,255,255,0.05);
+}
+.card-content{
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-width: 0;
+}
+.card-header{
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+.card-title{
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.card-meta{
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+.type-badge{
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+.type-movie{ background-color: rgba(79,168,160,0.15); color: var(--teal); }
+.type-show{ background-color: rgba(217,143,63,0.15); color: var(--amber); }
+.card-genres{
+  font-size: 12px;
+  color: var(--text-faint);
+  margin-top: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.card-footer{
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 8px;
+}
+.card-vault{
+  font-size: 11px;
+  color: var(--text-muted);
+  background-color: var(--panel-2);
+  padding: 2px 6px;
+  border-radius: 4px;
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.status-select-wrapper{
+  position: relative;
+}
+.status-select{
+  appearance: none;
+  background-color: var(--panel-2);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  padding: 5px 24px 5px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 500;
+  outline: none;
+  cursor: pointer;
+}
+.status-select:focus{
+  border-color: var(--gold);
+  color: var(--text);
+}
+.status-select-wrapper::after{\n  content: '▾';
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 10px;
+  color: var(--text-faint);
+  pointer-events: none;
+}
+.status-select[data-status="wahr"] { color: var(--gold); border-color: rgba(232,179,76,0.3); }
+.status-select[data-status="offen"] { color: var(--text-muted); }
+.status-select[data-status="archiv"] { color: var(--text-faint); }
+
+.empty-state{
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--text-faint);
+  font-size: 14px;
+}
+
+.stats-container{\n  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.stats-row{
+  display: flex;
+  gap: 12px;
+}
+.stat-card{
+  flex: 1;
+  background-color: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  text-align: center;
+}
+.stat-val{
+  font-family: var(--font-heading);
+  font-size: 36px;
+  color: var(--gold);
+  line-height: 1;
+  margin-bottom: 4px;
+}
+.stat-lbl{
+  font-size: 12px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.chart-card{
+  background-color: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+.chart-title{
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 14px;
+}
+.bar-list{
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.bar-item{\n  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+}
+.bar-name{
+  width: 90px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bar-track{
+  flex: 1;
+  height: 8px;
+  background-color: var(--panel-2);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.bar-fill{
+  height: 100%;
+  background-color: var(--teal);
+  border-radius: 4px;
+  width: 0%;
+  transition: width 0.6s ease-out;
+}
+.bar-count{
+  width: 24px;
+  text-align: right;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.match-box{
+  background-color: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  text-align: center;
+}
+.match-input-group{\n  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 15px;
+}
+.match-btn{
+  background-color: var(--gold);
+  color: var(--bg);
+  border: none;
+  padding: 12px;
+  border-radius: var(--radius);
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+.match-btn:hover{
+  background-color: #d6a23c;
+}
+.match-btn-secondary{
+  background-color: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  padding: 12px;
+  border-radius: var(--radius);
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+}
+.match-card-container{
+  position: relative;
+  height: 380px;
+  margin: 20px 0;
+  perspective: 1000px;
+}
+.match-card{
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  background-color: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+}
+.match-poster{\n  width: 160px;
+  height: 230px;
+  object-fit: cover;
+  border-radius: var(--radius);
+  border: 1px solid rgba(255,255,255,0.1);
+}
+.match-actions{
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  margin-top: 15px;
+}
+.action-btn{
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  transition: transform 0.1s;
+}
+.action-btn:active{
+  transform: scale(0.9);
+}
+.btn-dislike{ background-color: rgba(226,87,76,0.15); color: var(--red); border: 1px solid rgba(226,87,76,0.3); }
+.btn-like{ background-color: rgba(63,166,121,0.15); color: var(--green); border: 1px solid rgba(63,166,121,0.3); }
+
+.overlay{
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-color: rgba(18,20,26,0.95);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.overlay-box{
+  background-color: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+  width: 100%;
+  max-width: 400px;
+  text-align: center;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+}
+.overlay-title{
+  font-family: var(--font-heading);
+  font-size: 32px;
+  color: var(--gold);
+  margin-bottom: 8px;
+}
+.overlay-input{
+  width: 100%;
+  background-color: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 16px;
+  text-align: center;
+  outline: none;
+  margin: 15px 0;
+}
+.overlay-input:focus{
+  border-color: var(--gold);
+}
+.error-msg{
+  color: var(--red);
+  font-size: 13px;
+  margin-top: -8px;
+  margin-bottom: 10px;
+  display: none;
+}
+
+.match-overlay {
+  background: radial-gradient(circle, rgba(25,28,36,0.98) 0%, rgba(18,20,26,0.99) 100%);
+}
+.match-title-animation {
+  font-family: var(--font-heading);
+  font-size: 56px;
+  color: var(--gold);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  margin-bottom: 20px;
+  animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+@keyframes popIn {
+  0% { transform: scale(0.5); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.nav-bar{
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  background-color: var(--panel);
+  border-top: 1px solid var(--border);
+  display: flex;
+  z-index: 100;
+}
+.nav-item{
+  flex: 1;
+  background: none;
+  border: none;
+  color: var(--text-faint);
+  padding: 12px 0;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  transition: color 0.2s;
+}
+.nav-item svg{
+  width: 20px;
+  height: 20px;
+  fill: currentColor;
+}
+.nav-item.active{
+  color: var(--gold);
+}
+</style>
 </head>
 <body>
 
@@ -16,7 +571,8 @@
   <div class="overlay-box">
     <div class="overlay-title">Watchlist</div>
     <p style="font-size:13px; color:var(--text-muted);">Bitte Passwort eingeben, um fortzufahren.</p>
-    <input type="password" id="pwd-input" class="overlay-input" placeholder="••••••••" autocomplete="current-password">\n    <div id="pwd-error" class="error-msg">Falsches Passwort!</div>
+    <input type="password" id="pwd-input" class="overlay-input" placeholder="••••••••" autocomplete="current-password">
+    <div id="pwd-error" class="error-msg">Falsches Passwort!</div>
     <button id="pwd-btn" class="match-btn" style="width:100%;">Anmelden</button>
   </div>
 </div>
@@ -25,7 +581,8 @@
   <div class="overlay-box" style="background:none; border:none; max-width:500px;">
     <div class="match-title-animation">Es ist ein Match!</div>
     <p style="color:var(--text-muted); margin-bottom:25px; font-size:15px;">Ihr wollt beide das hier sehen:</p>
-    <img id="success-match-poster" class="match-poster" style="width:180px; height:260px; margin-bottom:20px; box-shadow:0 15px 35px rgba(0,0,0,0.6);" src="" alt="Poster">\n    <div id="success-match-title" style="font-size:22px; font-weight:800; color:var(--text); margin-bottom:30px;">-</div>
+    <img id="success-match-poster" class="match-poster" style="width:180px; height:260px; margin-bottom:20px; box-shadow:0 15px 35px rgba(0,0,0,0.6);" src="" alt="Poster">
+    <div id="success-match-title" style="font-size:22px; font-weight:800; color:var(--text); margin-bottom:30px;">-</div>
     <button id="close-match-overlay-btn" class="match-btn" style="width:100%; padding:14px; background-color:var(--teal); color:white;">Weiter swipen</button>
   </div>
 </div>
@@ -36,16 +593,26 @@
 </header>
 
 <div class="tabs">
-  <button class="tab-btn active" onclick="switchPage('all')">\n    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12h18M3 6h18M3 18h18"/></svg>\n    Übersicht\n  </button>
-  <button class="tab-btn" onclick="switchPage('stats')">\n    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>\n    Statistik\n  </button>
-  <button class="tab-btn" onclick="switchPage('match')">\n    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>\n    Match\n  </button>
+  <button class="tab-btn active" onclick="switchPage('all')">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+    Übersicht
+  </button>
+  <button class="tab-btn" onclick="switchPage('stats')">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
+    Statistik
+  </button>
+  <button class="tab-btn" onclick="switchPage('match')">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+    Match
+  </button>
 </div>
 
 <div class="container">
   <div id="page-all" class="page active">
     <div class="search-container">
       <span class="search-icon">🔍</span>
-      <input type="text" id="search" class="search-input" placeholder="Titel, Genre, Vault oder Jahr suchen...">\n    </div>
+      <input type="text" id="search" class="search-input" placeholder="Titel, Genre, Vault oder Jahr suchen...">
+    </div>
     <div id="filter-container" class="filter-tags"></div>
     <div id="watchlist" class="list-grid"></div>
   </div>
@@ -76,9 +643,11 @@
       <h2 style="font-size:20px; margin-bottom:10px;">Zusammen abstimmen</h2>
       <p style="color:var(--text-muted); font-size:13px; margin-bottom:15px;">Erstellt eine gemeinsame Session. Sobald beide denselben Film/Serie liken, gibt es ein Match!</p>
       <div class="match-input-group">
-        <input type="text" id="match-name-input" class="search-input" placeholder="Dein Name" style="padding-left:14px;">\n        <button id="create-room-btn" class="match-btn">Raum erstellen</button>
+        <input type="text" id="match-name-input" class="search-input" placeholder="Dein Name" style="padding-left:14px;">
+        <button id="create-room-btn" class="match-btn">Raum erstellen</button>
         <div style="color:var(--text-faint); font-size:12px; margin:5px 0;">ODER BEITRETEN</div>
-        <input type="text" id="match-room-input" class="search-input" placeholder="Raum-ID (z.B. AB123)" style="padding-left:14px; text-transform:uppercase;">\n        <button id="join-room-btn" class="match-btn-secondary">Raum beitreten</button>
+        <input type="text" id="match-room-input" class="search-input" placeholder="Raum-ID (z.B. AB123)" style="padding-left:14px; text-transform:uppercase;">
+        <button id="join-room-btn" class="match-btn-secondary">Raum beitreten</button>
       </div>
     </div>
     <div id="match-area" style="display:none;">
@@ -92,7 +661,8 @@
             <span id="match-card-type" class="type-badge">-</span>
             <span id="match-card-year" style="font-family:var(--font-mono); font-size:13px; color:var(--text-muted);">-</span>
           </div>
-          <img id="match-card-poster" class="match-poster" src="" alt="Poster">\n          <div style="text-align:center; width:100%; margin:10px 0;">
+          <img id="match-card-poster" class="match-poster" src="" alt="Poster">
+          <div style="text-align:center; width:100%; margin:10px 0;">
             <div id="match-card-title" style="font-size:18px; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">-</div>
             <div id="match-card-genres" style="font-size:12px; color:var(--text-faint); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:2px;">-</div>
           </div>
@@ -315,10 +885,10 @@ function renderStats() {
 
 
 // ==========================================
-//  CONFIGURATION & INITIALIZATION
+// SUPABASE CONFIGURATION & INITIALIZATION
 // ==========================================
-const SUPABASE_URL = "https://ozzfkzxyezcjsoichiue.supabase.co/rest/v1/";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im96emZrenh5ZXpjanNvaWNoaXVlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM1OTExMTIsImV4cCI6MjA5OTE2NzExMn0.ugnX6wNt2MrEF4Olf2faxErcg9AC8O1yCogacUrwZwQ";
+const SUPABASE_URL = "DEINE_SUPABASE_URL_HIER";
+const SUPABASE_KEY = "DEIN_SUPABASE_ANON_KEY_HIER";
 
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
