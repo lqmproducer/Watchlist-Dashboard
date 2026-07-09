@@ -6,7 +6,8 @@
 <title>Watchlist</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-database-compat.js"></script>
 <style>
 :root{
   --bg:            #12141a;
@@ -23,1165 +24,1426 @@
   --red:           #e2574c;
   --grey:          #6b7080;
   --radius:        10px;
-  --radius-sm:     6px;
-  --font-sans:     'Inter', sans-serif;
-  --font-heading:  'Bebas Neue', sans-serif;
+  --radius-lg:     16px;
+  --font-display:  'Bebas Neue', sans-serif;
+  --font-body:     'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   --font-mono:     'IBM Plex Mono', monospace;
 }
-*{
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  background:
+    radial-gradient(ellipse 900px 500px at 15% -10%, rgba(232,179,76,0.06), transparent),
+    radial-gradient(ellipse 700px 500px at 100% 0%, rgba(79,168,160,0.07), transparent),
+    var(--bg);
+  color:var(--text);
+  font-family:var(--font-body);
+  min-height:100vh;
 }
-body{\n  background-color: var(--bg);
-  color: var(--text);
-  font-family: var(--font-sans);
-  padding-bottom: 80px;
-  -webkit-tap-highlight-color: transparent;
+a{color:inherit;}
+::selection{background:var(--gold);color:#1a1a1a;}
+
+/* ── Kopfbereich mit Ticket-Tabs ─────────────────────────── */
+.page{max-width:1180px;margin:0 auto;padding:28px 20px 80px;}
+.masthead{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;
+  margin-bottom:26px;flex-wrap:wrap;}
+.masthead h1{
+  font-family:var(--font-display);
+  font-size:42px;letter-spacing:0.02em;margin:0;line-height:0.9;
+  background:linear-gradient(180deg,#fff,var(--text-muted));
+  -webkit-background-clip:text;background-clip:text;color:transparent;
 }
-header{
-  background-color: var(--panel);
-  border-bottom: 1px solid var(--border);
-  padding: 15px 20px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  position: sticky;
-  top: 0;
-  z-index: 100;
+.masthead .sub{font-size:12px;color:var(--text-faint);font-family:var(--font-mono);
+  margin-top:4px;letter-spacing:0.03em;}
+
+.ticket-tabs{display:flex;gap:0;position:relative;}
+.ticket-tab{
+  font-family:var(--font-mono);font-size:12px;font-weight:600;letter-spacing:0.06em;
+  text-transform:uppercase;color:var(--text-muted);
+  padding:11px 20px;cursor:pointer;background:var(--panel);
+  border:1px solid var(--border);position:relative;user-select:none;
+  transition:color .15s, background .15s;
 }
-h1{
-  font-family: var(--font-heading);
-  font-size: 28px;
-  letter-spacing: 1px;
-  color: var(--text);
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.ticket-tab:first-child{border-radius:var(--radius) 0 0 var(--radius);}
+.ticket-tab:last-child{border-radius:0 var(--radius) var(--radius) 0;border-left:none;}
+.ticket-tab.active{background:var(--panel-2);color:var(--gold);}
+.ticket-tab.active::after{
+  content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;background:var(--gold);
 }
-h1 span{
-  color: var(--gold);
+.ticket-tab .n{color:var(--text-faint);margin-right:6px;}
+.ticket-tab.active .n{color:var(--gold);}
+
+.view{display:none;}
+.view.active{display:block;}
+
+/* ── Filter-Leiste ────────────────────────────────────────── */
+.filterbar{display:flex;flex-wrap:wrap;gap:9px;align-items:center;margin-bottom:16px;}
+.search-wrap{position:relative;flex:1;min-width:200px;max-width:320px;}
+.search-wrap svg{position:absolute;left:11px;top:50%;transform:translateY(-50%);opacity:.4;pointer-events:none;}
+.input, select.select{
+  width:100%;padding:9px 12px;border-radius:8px;font-size:13px;font-family:var(--font-body);
+  background:var(--panel);border:1px solid var(--border);color:var(--text);outline:none;
 }
-.stats-badge{
-  background-color: var(--panel-2);
-  border: 1px solid var(--border);
-  padding: 6px 12px;
-  border-radius: var(--radius-sm);
-  font-family: var(--font-mono);
-  font-size: 12px;
-  color: var(--text-muted);
+.input{padding-left:34px;}
+.input:focus, select.select:focus{border-color:var(--teal);}
+select.select{width:auto;padding-right:28px;cursor:pointer;}
+.chips{display:flex;gap:6px;flex-wrap:wrap;}
+.chip{
+  display:inline-flex;align-items:center;gap:6px;padding:7px 13px;border-radius:99px;
+  font-size:11.5px;font-weight:600;cursor:pointer;border:1.5px solid var(--border);
+  background:var(--panel);color:var(--text-muted);transition:.15s;user-select:none;
 }
-.stats-badge strong{\n  color: var(--gold);
-}
-.tabs{
-  display: flex;
-  background-color: var(--panel);
-  border-bottom: 1px solid var(--border);
-  position: sticky;
-  top: 69px;
-  z-index: 99;
-}
-.tab-btn{
-  flex: 1;
-  background: none;
-  border: none;
-  color: var(--text-faint);
-  padding: 14px 0;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-  text-align: center;
-  border-bottom: 2px solid transparent;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-}
-.tab-btn.active{
-  color: var(--gold);
-  border-bottom-color: var(--gold);
-  background-color: rgba(232,179,76,0.03);
-}
-.container{
-  max-width: 800px;
-  margin: 0 auto;
-  padding: 20px;
-}
-.page{
-  display: none;
-}
-.page.active{
-  display: block;
-}
-.search-container{
-  position: relative;
-  margin-bottom: 20px;
-}
-.search-input{
-  width: 100%;
-  background-color: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 12px 16px 12px 40px;
-  color: var(--text);
-  font-family: var(--font-sans);
-  font-size: 14px;
-  outline: none;
-  transition: border-color 0.2s;
-}
-.search-input:focus{
-  border-color: var(--gold);
-}
-.search-icon{
-  position: absolute;
-  left: 14px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--text-faint);
-  pointer-events: none;
-}
-.filter-tags{
-  display: flex;
-  gap: 8px;
-  overflow-x: auto;
-  padding-bottom: 4px;
-  margin-bottom: 20px;
-  scrollbar-width: none;
-}
-.filter-tags::-webkit-scrollbar{
-  display: none;
-}
-.tag-btn{
-  background-color: var(--panel);
-  border: 1px solid var(--border);
-  color: var(--text-muted);
-  padding: 6px 14px;
-  border-radius: 20px;
-  font-size: 12px;
-  font-weight: 500;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: all 0.2s;
-}
-.tag-btn.active{
-  background-color: var(--gold);
-  border-color: var(--gold);
-  color: var(--bg);
-  font-weight: 600;
-}
-.list-grid{
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
+.chip .dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.chip.active{background:var(--panel-2);color:var(--text);border-color:currentColor;}
+
+.resultbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px;}
+.resultbar .count{font-size:12px;color:var(--text-faint);font-family:var(--font-mono);flex:1;}
+.sortgroup{display:flex;gap:4px;background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:3px;}
+.sortbtn{padding:5px 11px;border-radius:6px;font-size:11.5px;font-weight:600;color:var(--text-muted);
+  cursor:pointer;background:none;border:none;font-family:var(--font-body);}
+.sortbtn.active{background:var(--panel-2);color:var(--gold);}
+.btn{padding:8px 15px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;
+  border:1.5px solid var(--border);background:var(--panel);color:var(--text);font-family:var(--font-body);}
+.btn:hover{background:var(--panel-2);}
+.btn.accent{background:var(--gold);border-color:var(--gold);color:#1a1408;}
+.btn.bm-active{background:var(--amber);border-color:var(--amber);color:#1a1408;}
+
+/* ── Grid & Karten ────────────────────────────────────────── */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px;}
 .card{
-  background-color: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 14px;
-  display: flex;
-  gap: 14px;
-  position: relative;
-  overflow: hidden;
-  transition: transform 0.2s, border-color 0.2s;
+  background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);
+  overflow:hidden;cursor:pointer;position:relative;transition:transform .15s, border-color .15s;
 }
-.card:active{\n  transform: scale(0.99);
-}
-.card-poster{
-  width: 70px;
-  height: 100px;
-  background-color: var(--panel-2);
-  border-radius: var(--radius-sm);
-  object-fit: cover;
-  flex-shrink: 0;
-  border: 1px solid rgba(255,255,255,0.05);
-}
-.card-content{
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  min-width: 0;
-}
-.card-header{
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 8px;
-}
-.card-title{
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--text);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.card-meta{
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-family: var(--font-mono);
-  font-size: 12px;
-  color: var(--text-muted);
-  margin-top: 2px;
-}
-.type-badge{
-  font-size: 10px;
-  font-weight: 700;
-  text-transform: uppercase;
-  padding: 1px 4px;
-  border-radius: 3px;
-}
-.type-movie{ background-color: rgba(79,168,160,0.15); color: var(--teal); }
-.type-show{ background-color: rgba(217,143,63,0.15); color: var(--amber); }
-.card-genres{
-  font-size: 12px;
-  color: var(--text-faint);
-  margin-top: 4px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.card-footer{
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-top: 8px;
-}
-.card-vault{
-  font-size: 11px;
-  color: var(--text-muted);
-  background-color: var(--panel-2);
-  padding: 2px 6px;
-  border-radius: 4px;
-  max-width: 150px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.status-select-wrapper{
-  position: relative;
-}
-.status-select{
-  appearance: none;
-  background-color: var(--panel-2);
-  border: 1px solid var(--border);
-  color: var(--text-muted);
-  padding: 5px 24px 5px 10px;
-  border-radius: var(--radius-sm);
-  font-size: 12px;
-  font-weight: 500;
-  outline: none;
-  cursor: pointer;
-}
-.status-select:focus{
-  border-color: var(--gold);
-  color: var(--text);
-}
-.status-select-wrapper::after{\n  content: '▾';
-  position: absolute;
-  right: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  font-size: 10px;
-  color: var(--text-faint);
-  pointer-events: none;
-}
-.status-select[data-status="wahr"] { color: var(--gold); border-color: rgba(232,179,76,0.3); }
-.status-select[data-status="offen"] { color: var(--text-muted); }
-.status-select[data-status="archiv"] { color: var(--text-faint); }
+.card:hover{transform:translateY(-3px);border-color:var(--teal);}
+.card-img, .card-ph{width:100%;aspect-ratio:2/3;object-fit:cover;display:block;background:var(--panel-2);}
+.card-ph{display:flex;align-items:center;justify-content:center;font-size:28px;}
+.card-body{padding:9px 10px 11px;}
+.card-title{font-size:13px;font-weight:700;line-height:1.25;margin-bottom:3px;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+.card-meta{font-size:11px;color:var(--text-faint);}
+.card-rating{font-size:11.5px;color:var(--gold);font-weight:700;margin-top:4px;font-family:var(--font-mono);}
+.badge{position:absolute;top:8px;left:8px;font-size:10px;font-weight:700;padding:3px 8px;
+  border-radius:99px;font-family:var(--font-mono);letter-spacing:.02em;}
+.badge-watching{background:var(--amber);color:#1a1408;}
+.badge-watched{background:var(--green);color:#082018;}
+.badge-unwatched{background:rgba(0,0,0,.55);color:var(--text-muted);border:1px solid var(--border);}
+.bm-btn{position:absolute;top:8px;right:8px;width:26px;height:26px;border-radius:50%;
+  background:rgba(0,0,0,.55);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;
+  font-size:13px;cursor:pointer;}
+.bm-btn.on{background:var(--amber);border-color:var(--amber);}
 
-.empty-state{
-  text-align: center;
-  padding: 40px 20px;
-  color: var(--text-faint);
-  font-size: 14px;
-}
+.coll-collage{display:grid;width:100%;aspect-ratio:2/3;background:var(--panel-2);}
+.coll-collage.n1{grid-template-columns:1fr;}
+.coll-collage.n2{grid-template-columns:1fr 1fr;}
+.coll-collage.n3, .coll-collage.n4{grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;}
+.coll-collage img{width:100%;height:100%;object-fit:cover;}
+.coll-collage:empty::before{content:"🗂️";display:flex;align-items:center;justify-content:center;
+  height:100%;font-size:30px;}
 
-.stats-container{\n  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-.stats-row{
-  display: flex;
-  gap: 12px;
-}
-.stat-card{
-  flex: 1;
-  background-color: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 16px;
-  text-align: center;
-}
-.stat-val{
-  font-family: var(--font-heading);
-  font-size: 36px;
-  color: var(--gold);
-  line-height: 1;
-  margin-bottom: 4px;
-}
-.stat-lbl{
-  font-size: 12px;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-.chart-card{
-  background-color: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 16px;
-}
-.chart-title{
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-muted);
-  margin-bottom: 14px;
-}
-.bar-list{
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-.bar-item{\n  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 12px;
-}
-.bar-name{
-  width: 90px;
-  color: var(--text);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.bar-track{
-  flex: 1;
-  height: 8px;
-  background-color: var(--panel-2);
-  border-radius: 4px;
-  overflow: hidden;
-}
-.bar-fill{
-  height: 100%;
-  background-color: var(--teal);
-  border-radius: 4px;
-  width: 0%;
-  transition: width 0.6s ease-out;
-}
-.bar-count{
-  width: 24px;
-  text-align: right;
-  color: var(--text-muted);
-  font-family: var(--font-mono);
-}
+.empty{padding:60px 20px;text-align:center;color:var(--text-faint);}
+.empty .icon{font-size:34px;margin-bottom:10px;}
 
-.match-box{
-  background-color: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 20px;
-  text-align: center;
-}
-.match-input-group{\n  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin-top: 15px;
-}
-.match-btn{
-  background-color: var(--gold);
-  color: var(--bg);
-  border: none;
-  padding: 12px;
-  border-radius: var(--radius);
-  font-weight: 700;
-  font-size: 14px;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-.match-btn:hover{
-  background-color: #d6a23c;
-}
-.match-btn-secondary{
-  background-color: var(--panel-2);
-  color: var(--text);
-  border: 1px solid var(--border);
-  padding: 12px;
-  border-radius: var(--radius);
-  font-weight: 600;
-  font-size: 14px;
-  cursor: pointer;
-}
-.match-card-container{
-  position: relative;
-  height: 380px;
-  margin: 20px 0;
-  perspective: 1000px;
-}
-.match-card{
-  position: absolute;
-  width: 100%;
-  height: 100%;
-  background-color: var(--panel-2);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 20px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: space-between;
-  box-shadow: 0 10px 25px rgba(0,0,0,0.3);
-}
-.match-poster{\n  width: 160px;
-  height: 230px;
-  object-fit: cover;
-  border-radius: var(--radius);
-  border: 1px solid rgba(255,255,255,0.1);
-}
-.match-actions{
-  display: flex;
-  justify-content: center;
-  gap: 20px;
-  margin-top: 15px;
-}
-.action-btn{
-  width: 60px;
-  height: 60px;
-  border-radius: 50%;
-  border: none;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 24px;
-  transition: transform 0.1s;
-}
-.action-btn:active{
-  transform: scale(0.9);
-}
-.btn-dislike{ background-color: rgba(226,87,76,0.15); color: var(--red); border: 1px solid rgba(226,87,76,0.3); }
-.btn-like{ background-color: rgba(63,166,121,0.15); color: var(--green); border: 1px solid rgba(63,166,121,0.3); }
+/* ── Spotlight ────────────────────────────────────────────── */
+.spotlight{display:none;background:var(--panel);border:1px solid var(--gold);border-radius:var(--radius-lg);
+  padding:18px;margin-bottom:18px;gap:16px;align-items:center;}
+.spotlight.visible{display:flex;}
+.spotlight img, .spotlight .ph{width:90px;aspect-ratio:2/3;object-fit:cover;border-radius:8px;flex-shrink:0;}
+.spotlight .ph{background:var(--panel-2);display:flex;align-items:center;justify-content:center;font-size:26px;}
+.spotlight .info{flex:1;min-width:0;}
+.spotlight .eyebrow{font-family:var(--font-mono);font-size:10.5px;color:var(--gold);letter-spacing:.08em;
+  text-transform:uppercase;margin-bottom:4px;}
+.spotlight .title{font-size:19px;font-weight:800;margin-bottom:4px;}
+.spotlight .meta{font-size:12px;color:var(--text-muted);margin-bottom:8px;}
+.spotlight .tags{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px;}
+.spotlight .tag{font-size:10.5px;padding:3px 9px;border-radius:99px;background:var(--panel-2);color:var(--text-muted);}
+.spotlight .close{position:absolute;top:12px;right:14px;cursor:pointer;color:var(--text-faint);font-size:15px;}
+.spotlight{position:relative;}
 
-.overlay{
-  position: fixed;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background-color: rgba(18,20,26,0.95);
-  z-index: 200;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-}
-.overlay-box{
-  background-color: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 24px;
-  width: 100%;
-  max-width: 400px;
-  text-align: center;
-  box-shadow: 0 20px 40px rgba(0,0,0,0.5);
-}
-.overlay-title{
-  font-family: var(--font-heading);
-  font-size: 32px;
-  color: var(--gold);
-  margin-bottom: 8px;
-}
-.overlay-input{
-  width: 100%;
-  background-color: var(--panel-2);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: 12px;
-  color: var(--text);
-  font-family: var(--font-mono);
-  font-size: 16px;
-  text-align: center;
-  outline: none;
-  margin: 15px 0;
-}
-.overlay-input:focus{
-  border-color: var(--gold);
-}
-.error-msg{
-  color: var(--red);
-  font-size: 13px;
-  margin-top: -8px;
-  margin-bottom: 10px;
-  display: none;
-}
+/* ── Übersicht-Tab ────────────────────────────────────────── */
+.section-label{font-family:var(--font-mono);font-size:11px;font-weight:600;color:var(--text-faint);
+  letter-spacing:0.09em;text-transform:uppercase;margin:34px 0 10px;padding-bottom:7px;
+  border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;}
+.section-label:first-child{margin-top:0;}
+.stat-card{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;}
+.hint{font-size:11.5px;color:var(--text-faint);margin-bottom:10px;}
 
-.match-overlay {
-  background: radial-gradient(circle, rgba(25,28,36,0.98) 0%, rgba(18,20,26,0.99) 100%);
-}
-.match-title-animation {
-  font-family: var(--font-heading);
-  font-size: 56px;
-  color: var(--gold);
-  text-transform: uppercase;
-  letter-spacing: 2px;
-  margin-bottom: 20px;
-  animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-}
-@keyframes popIn {
-  0% { transform: scale(0.5); opacity: 0; }
-  100% { transform: scale(1); opacity: 1; }
-}
+.rank-row{display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--border);}
+.rank-row:last-child{border-bottom:none;}
+.rank-num{font-family:var(--font-mono);font-size:11px;color:var(--text-faint);width:16px;flex-shrink:0;}
+.rank-avatar{width:32px;height:32px;border-radius:50%;background:var(--panel-2);flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;overflow:hidden;}
+.rank-avatar img{width:100%;height:100%;object-fit:cover;}
+.rank-info{flex:1;min-width:0;}
+.rank-name{font-size:13px;font-weight:600;}
+.rank-sub{font-size:11px;color:var(--text-faint);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.rank-right{text-align:right;flex-shrink:0;}
+.rank-score{font-family:var(--font-mono);font-size:13px;font-weight:700;color:var(--gold);}
+.rank-avg{font-size:10.5px;color:var(--text-faint);}
 
-.nav-bar{
-  position: fixed;
-  bottom: 0; left: 0; right: 0;
-  background-color: var(--panel);
-  border-top: 1px solid var(--border);
-  display: flex;
-  z-index: 100;
-}
-.nav-item{
-  flex: 1;
-  background: none;
-  border: none;
-  color: var(--text-faint);
-  padding: 12px 0;
-  font-size: 11px;
-  font-weight: 600;
-  cursor: pointer;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  transition: color 0.2s;
-}
-.nav-item svg{
-  width: 20px;
-  height: 20px;
-  fill: currentColor;
-}
-.nav-item.active{
-  color: var(--gold);
+.bar-row{display:flex;align-items:center;gap:10px;padding:6px 0;}
+.bar-name{font-size:12px;width:130px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.bar-track{flex:1;height:7px;background:var(--panel-2);border-radius:99px;overflow:hidden;}
+.bar-fill{height:100%;border-radius:99px;}
+.bar-val{font-family:var(--font-mono);font-size:11px;color:var(--text-faint);width:80px;text-align:right;flex-shrink:0;}
+
+.toggle-row{display:flex;gap:6px;margin-bottom:10px;}
+.toggle-btn{font-size:11px;padding:4px 11px;border-radius:99px;border:1px solid var(--border);
+  cursor:pointer;background:var(--panel-2);color:var(--text-muted);font-family:var(--font-body);}
+.toggle-btn.active{background:var(--teal);color:#08201d;border-color:var(--teal);}
+
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+@media(max-width:720px){.two-col{grid-template-columns:1fr;}}
+
+.diff-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);}
+.diff-row:last-child{border-bottom:none;}
+.diff-img{width:34px;aspect-ratio:2/3;object-fit:cover;border-radius:4px;flex-shrink:0;background:var(--panel-2);}
+.diff-info{flex:1;min-width:0;}
+.diff-title{font-size:12.5px;font-weight:600;}
+.diff-sub{font-size:10.5px;color:var(--text-faint);}
+.diff-score{text-align:right;flex-shrink:0;}
+.diff-rating{font-family:var(--font-mono);font-size:13px;font-weight:700;}
+.diff-delta{font-size:10.5px;font-weight:700;}
+
+.covers{display:flex;gap:10px;overflow-x:auto;padding-bottom:6px;}
+.tile{flex-shrink:0;width:100px;cursor:pointer;}
+.tile img, .tile .ph{width:100px;height:150px;object-fit:cover;border-radius:8px;background:var(--panel-2);}
+.tile .ph{display:flex;align-items:center;justify-content:center;font-size:22px;}
+.tile-lbl{font-size:11px;font-weight:600;margin-top:5px;line-height:1.2;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+.tile-r{font-size:10.5px;color:var(--gold);font-family:var(--font-mono);}
+
+.footnote{margin-top:40px;font-size:11px;color:var(--text-faint);text-align:center;font-family:var(--font-mono);}
+
+/* ── Match-Tab ────────────────────────────────────────────── */
+.match-screen{max-width:520px;margin:0 auto;}
+.match-lobby-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:800px;margin:0 auto;}
+@media(max-width:640px){.match-lobby-grid{grid-template-columns:1fr;}}
+.match-panel{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:16px;}
+.match-label{display:block;font-size:11px;color:var(--text-faint);font-family:var(--font-mono);
+  text-transform:uppercase;letter-spacing:.05em;margin:12px 0 5px;}
+.match-label:first-of-type{margin-top:12px;}
+.match-input, .match-select{margin-bottom:0;}
+.match-btn-full{width:100%;margin-top:16px;padding:11px;font-size:13px;}
+.match-error{color:var(--red);font-size:12px;margin-top:8px;min-height:1em;}
+
+.match-roomcode{text-align:center;font-family:var(--font-mono);font-size:12px;color:var(--text-faint);margin-bottom:14px;}
+.match-roomcode span{color:var(--gold);font-weight:700;letter-spacing:.08em;}
+
+.match-progress{max-width:320px;margin:0 auto 18px;}
+.match-progress-track{height:8px;background:var(--panel-2);border-radius:99px;overflow:hidden;}
+.match-progress-fill{height:100%;background:linear-gradient(90deg,var(--amber),var(--gold));border-radius:99px;transition:width .25s;}
+.match-progress-label{text-align:center;font-family:var(--font-mono);font-size:11px;color:var(--text-faint);margin-top:6px;}
+
+.match-card-stack{position:relative;width:100%;max-width:280px;margin:0 auto;aspect-ratio:2/3;}
+.match-card{position:absolute;inset:0;background:var(--panel);border:1px solid var(--border);border-radius:var(--radius-lg);
+  overflow:hidden;box-shadow:0 12px 30px rgba(0,0,0,.4);display:flex;flex-direction:column;}
+.match-card img{width:100%;flex:1;object-fit:cover;}
+.match-card .match-card-ph{flex:1;display:flex;align-items:center;justify-content:center;font-size:44px;background:var(--panel-2);}
+.match-card-info{padding:12px;}
+.match-card-title{font-size:15px;font-weight:800;margin-bottom:3px;}
+.match-card-meta{font-size:11.5px;color:var(--text-faint);}
+.match-empty-deck{text-align:center;padding:40px 14px;color:var(--text-faint);}
+
+.match-swipe-actions{display:flex;justify-content:center;gap:22px;margin-top:20px;}
+.match-action-btn{width:60px;height:60px;border-radius:50%;border:1.5px solid var(--border);background:var(--panel);
+  font-size:24px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:transform .1s;}
+.match-action-btn:active{transform:scale(0.9);}
+.match-action-btn.match-x{color:var(--red);border-color:var(--red);}
+.match-action-btn.match-heart{color:var(--amber);border-color:var(--amber);}
+
+.match-participants{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:22px;}
+.match-participant-chip{font-size:11px;padding:5px 11px;border-radius:99px;background:var(--panel);
+  border:1px solid var(--border);color:var(--text-muted);font-family:var(--font-mono);}
+.match-participant-chip.ready{color:var(--green);border-color:var(--green);}
+
+.match-duel{display:flex;gap:14px;align-items:stretch;justify-content:center;}
+.match-duel-card{flex:1;max-width:210px;background:var(--panel);border:1.5px solid var(--border);border-radius:var(--radius);
+  overflow:hidden;cursor:pointer;transition:border-color .15s, transform .15s;}
+.match-duel-card:hover{border-color:var(--gold);transform:translateY(-3px);}
+.match-duel-card img{width:100%;aspect-ratio:2/3;object-fit:cover;display:block;}
+.match-duel-card .match-card-ph{aspect-ratio:2/3;font-size:34px;}
+.match-duel-card-info{padding:10px;}
+.match-duel-card-title{font-size:13px;font-weight:700;}
+.match-duel-vs{align-self:center;font-family:var(--font-display);font-size:22px;color:var(--text-faint);flex-shrink:0;}
+.match-duel-waiting{text-align:center;font-size:12px;color:var(--text-faint);margin-top:16px;font-family:var(--font-mono);}
+
+.match-winner-box{text-align:center;max-width:320px;margin:20px auto 0;}
+.match-winner-eyebrow{font-family:var(--font-mono);font-size:12px;color:var(--gold);letter-spacing:.08em;
+  text-transform:uppercase;margin-bottom:16px;}
+.match-winner-box img{width:220px;aspect-ratio:2/3;object-fit:cover;border-radius:var(--radius-lg);
+  box-shadow:0 16px 40px rgba(232,179,76,.25);margin-bottom:14px;border:2px solid var(--gold);}
+.match-winner-title{font-size:22px;font-weight:800;margin-bottom:4px;}
+.match-winner-meta{font-size:12px;color:var(--text-muted);margin-bottom:18px;}
+
+@media(max-width:600px){
+  .masthead h1{font-size:32px;}
+  .rank-sub{white-space:normal;}
 }
 </style>
 </head>
 <body>
-
-<div id="password-overlay" class="overlay">
-  <div class="overlay-box">
-    <div class="overlay-title">Watchlist</div>
-    <p style="font-size:13px; color:var(--text-muted);">Bitte Passwort eingeben, um fortzufahren.</p>
-    <input type="password" id="pwd-input" class="overlay-input" placeholder="••••••••" autocomplete="current-password">
-    <div id="pwd-error" class="error-msg">Falsches Passwort!</div>
-    <button id="pwd-btn" class="match-btn" style="width:100%;">Anmelden</button>
+<div id="password-overlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #12141a; z-index: 999999; display: flex; flex-direction: column; justify-content: center; align-items: center; font-family: 'Inter', sans-serif; color: #edeff4;">
+  <div style="background: #191c24; padding: 30px; border-radius: 12px; border: 1px solid #2a2e3c; text-align: center; max-width: 360px; width: 90%; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+    <h2 style="font-family: 'Bebas Neue', sans-serif; letter-spacing: 2px; font-size: 28px; margin-bottom: 20px; color: #e8b34c;">🔒 Zugriff geschützt</h2>
+    <p style="font-size: 14px; color: #b0b5cc; margin-bottom: 20px;">Bitte gib das Passwort ein, um die Watchlist anzusehen.</p>
+    <input type="password" id="pwd-input" placeholder="Passwort eingeben..." style="width: 100%; padding: 12px; border-radius: 6px; border: 1px solid #2a2e3c; background: #12141a; color: #fff; font-size: 16px; outline: none; text-align: center; margin-bottom: 15px;">
+    <button id="pwd-btn" style="width: 100%; padding: 12px; border-radius: 6px; border: none; background: #e8b34c; color: #12141a; font-weight: bold; font-size: 16px; cursor: pointer; transition: opacity 0.2s;">Einloggen</button>
+    <p id="pwd-error" style="color: #e2574c; font-size: 13px; margin-top: 12px; display: none;">❌ Falsches Passwort!</p>
   </div>
 </div>
+<div class="page">
 
-<div id="match-success-overlay" class="overlay match-overlay" style="display:none;">
-  <div class="overlay-box" style="background:none; border:none; max-width:500px;">
-    <div class="match-title-animation">Es ist ein Match!</div>
-    <p style="color:var(--text-muted); margin-bottom:25px; font-size:15px;">Ihr wollt beide das hier sehen:</p>
-    <img id="success-match-poster" class="match-poster" style="width:180px; height:260px; margin-bottom:20px; box-shadow:0 15px 35px rgba(0,0,0,0.6);" src="" alt="Poster">
-    <div id="success-match-title" style="font-size:22px; font-weight:800; color:var(--text); margin-bottom:30px;">-</div>
-    <button id="close-match-overlay-btn" class="match-btn" style="width:100%; padding:14px; background-color:var(--teal); color:white;">Weiter swipen</button>
-  </div>
-</div>
-
-<header>
-  <h1><span>★</span> WATCHLIST</h1>
-  <div id="global-counter" class="stats-badge">Einträge: <strong>-</strong></div>
-</header>
-
-<div class="tabs">
-  <button class="tab-btn active" onclick="switchPage('all')">
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
-    Übersicht
-  </button>
-  <button class="tab-btn" onclick="switchPage('stats')">
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
-    Statistik
-  </button>
-  <button class="tab-btn" onclick="switchPage('match')">
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-    Match
-  </button>
-</div>
-
-<div class="container">
-  <div id="page-all" class="page active">
-    <div class="search-container">
-      <span class="search-icon">🔍</span>
-      <input type="text" id="search" class="search-input" placeholder="Titel, Genre, Vault oder Jahr suchen...">
+  <div class="masthead">
+    <div>
+      <h1>WATCHLIST</h1>
+      <div class="sub" id="genAt">wird geladen…</div>
     </div>
-    <div id="filter-container" class="filter-tags"></div>
-    <div id="watchlist" class="list-grid"></div>
-  </div>
-
-  <div id="page-stats" class="page">
-    <div class="stats-container">
-      <div class="stats-row">
-        <div class="stat-card"><div id="stat-total" class="stat-val">-</div><div class="stat-lbl">Gesamt</div></div>
-        <div class="stat-card"><div id="stat-seen" class="stat-val">-</div><div class="stat-lbl">Gesehen</div></div>
-      </div>
-      <div class="stats-row">
-        <div class="stat-card"><div id="stat-movies" class="stat-val">-</div><div class="stat-lbl">Filme</div></div>
-        <div class="stat-card"><div id="stat-shows" class="stat-val">-</div><div class="stat-lbl">Serien</div></div>
-      </div>
-      <div class="chart-card">
-        <div class="chart-title">Einträge nach Vault</div>
-        <div id="vault-chart" class="bar-list"></div>
-      </div>
-      <div class="chart-card">
-        <div class="chart-title">Häufigste Genres</div>
-        <div id="genre-chart" class="bar-list"></div>
-      </div>
+    <div class="ticket-tabs">
+      <div class="ticket-tab active" data-tab="watchlist"><span class="n">01</span>Watchlist</div>
+      <div class="ticket-tab" data-tab="uebersicht"><span class="n">02</span>Übersicht</div>
+      <div class="ticket-tab" data-tab="match"><span class="n">03</span>Match</div>
     </div>
   </div>
 
-  <div id="page-match" class="page">
-    <div id="match-setup" class="match-box">
-      <h2 style="font-size:20px; margin-bottom:10px;">Zusammen abstimmen</h2>
-      <p style="color:var(--text-muted); font-size:13px; margin-bottom:15px;">Erstellt eine gemeinsame Session. Sobald beide denselben Film/Serie liken, gibt es ein Match!</p>
-      <div class="match-input-group">
-        <input type="text" id="match-name-input" class="search-input" placeholder="Dein Name" style="padding-left:14px;">
-        <button id="create-room-btn" class="match-btn">Raum erstellen</button>
-        <div style="color:var(--text-faint); font-size:12px; margin:5px 0;">ODER BEITRETEN</div>
-        <input type="text" id="match-room-input" class="search-input" placeholder="Raum-ID (z.B. AB123)" style="padding-left:14px; text-transform:uppercase;">
-        <button id="join-room-btn" class="match-btn-secondary">Raum beitreten</button>
+  <!-- ═══════════════ WATCHLIST TAB ═══════════════ -->
+  <div class="view active" id="view-watchlist">
+
+    <div class="spotlight" id="spotlight"></div>
+
+    <div class="filterbar">
+      <div class="search-wrap">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input class="input" id="searchInput" placeholder="Titel, Person, Genre …">
+      </div>
+      <select class="select" id="typeSelect">
+        <option value="all">Alle Typen</option>
+        <option value="film">🎬 Filme</option>
+        <option value="serie">📺 Serien</option>
+        <option value="collection">🗂️ Collections</option>
+      </select>
+      <select class="select" id="genreSelect"><option value="all">Alle Genres</option></select>
+      <select class="select" id="serviceSelect"><option value="all">Alle Dienste</option></select>
+      <div class="chips" id="statusChips">
+        <div class="chip active" data-status="unwatched"><span class="dot" style="background:var(--grey)"></span>Geplant</div>
+        <div class="chip active" data-status="watching"><span class="dot" style="background:var(--amber)"></span>Am Schauen</div>
+        <div class="chip active" data-status="watched"><span class="dot" style="background:var(--green)"></span>Gesehen</div>
       </div>
     </div>
-    <div id="match-area" style="display:none;">
-      <div style="display:flex; justify-content:between; align-items:center; margin-bottom:10px;">
-        <div id="match-room-display" class="stats-badge" style="font-size:14px; font-weight:700; color:var(--gold); border-color:var(--gold);">Raum: -</div>
-        <button onclick="leaveMatchRoom()" class="tag-btn" style="border:none; background-color:var(--panel-2);">Verlassen</button>
+
+    <div class="resultbar">
+      <div class="count" id="resultCount"></div>
+      <div class="sortgroup" id="sortGroup">
+        <button class="sortbtn active" data-sort="title">A–Z</button>
+        <button class="sortbtn" data-sort="year">Jahr</button>
+        <button class="sortbtn" data-sort="rating">★ Wertung</button>
       </div>
-      <div class="match-card-container">
-        <div id="match-card" class="match-card">
-          <div style="width:100%; display:flex; justify-content:space-between; align-items:center;">
-            <span id="match-card-type" class="type-badge">-</span>
-            <span id="match-card-year" style="font-family:var(--font-mono); font-size:13px; color:var(--text-muted);">-</span>
-          </div>
-          <img id="match-card-poster" class="match-poster" src="" alt="Poster">
-          <div style="text-align:center; width:100%; margin:10px 0;">
-            <div id="match-card-title" style="font-size:18px; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">-</div>
-            <div id="match-card-genres" style="font-size:12px; color:var(--text-faint); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:2px;">-</div>
-          </div>
+      <button class="btn" id="bmFilterBtn">🔖 Nur Highlights</button>
+      <button class="btn accent" id="randomBtn">🎲 Überrasch mich!</button>
+    </div>
+
+    <div class="grid" id="grid"></div>
+  </div>
+
+  <!-- ═══════════════ ÜBERSICHT TAB ═══════════════ -->
+  <div class="view" id="view-uebersicht">
+    <div id="uebersichtRoot"></div>
+  </div>
+
+  <!-- ═══════════════ MATCH TAB ═══════════════ -->
+  <div class="view" id="view-match">
+
+    <!-- Screen: Firebase noch nicht konfiguriert -->
+    <div class="match-screen" id="match-noconfig">
+      <div class="empty">
+        <div class="icon">⚙️</div>
+        Match-Funktion ist noch nicht eingerichtet.<br>
+        Trag deine Firebase-Konfiguration im Skript ein (siehe README).
+      </div>
+    </div>
+
+    <!-- Screen: Lobby (Runde erstellen oder beitreten) -->
+    <div class="match-screen" id="match-lobby" style="display:none">
+      <div class="match-lobby-grid">
+
+        <div class="match-panel">
+          <div class="section-label" style="margin-top:0">🎬 Neue Runde starten</div>
+          <label class="match-label">Dein Profilname</label>
+          <input class="input match-input" id="createName" placeholder="z. B. Luka" maxlength="20">
+          <label class="match-label">Typ</label>
+          <select class="select match-select" id="createType">
+            <option value="all">Filme &amp; Serien</option>
+            <option value="film">Nur Filme</option>
+            <option value="serie">Nur Serien</option>
+          </select>
+          <label class="match-label">Genre</label>
+          <select class="select match-select" id="createGenre"><option value="all">Alle Genres</option></select>
+          <label class="match-label">Streaming-Dienst</label>
+          <select class="select match-select" id="createService"><option value="all">Alle Dienste</option></select>
+          <label class="match-label">Ziel-Likes pro Person</label>
+          <input class="input match-input" id="createGoal" type="number" value="15" min="3" max="50">
+          <button class="btn accent match-btn-full" id="createRoomBtn">🚀 Runde erstellen</button>
+          <div class="match-error" id="createError"></div>
         </div>
-        <div id="match-empty" class="empty-state" style="display:none; position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:100%;">
-          Keine weiteren offenen Filme oder Serien zum Swipen vorhanden!
+
+        <div class="match-panel">
+          <div class="section-label" style="margin-top:0">🔑 Runde beitreten</div>
+          <label class="match-label">Dein Profilname</label>
+          <input class="input match-input" id="joinName" placeholder="z. B. Anna" maxlength="20">
+          <label class="match-label">Raum-Code</label>
+          <input class="input match-input" id="joinCode" placeholder="z. B. FX7K" maxlength="8" style="text-transform:uppercase">
+          <button class="btn accent match-btn-full" id="joinRoomBtn">🔗 Beitreten</button>
+          <div class="match-error" id="joinError"></div>
         </div>
-      </div>
-      <div class="match-actions" id="match-buttons-row">
-        <button id="match-dislike-btn" class="action-btn btn-dislike">✕</button>
-        <button id="match-like-btn" class="action-btn btn-like">♥</button>
+
       </div>
     </div>
+
+    <!-- Screen: Swiping -->
+    <div class="match-screen" id="match-swipe" style="display:none">
+      <div class="match-roomcode">Raum-Code: <span id="swipeRoomCode"></span></div>
+      <div class="match-progress">
+        <div class="match-progress-track"><div class="match-progress-fill" id="swipeProgressFill"></div></div>
+        <div class="match-progress-label" id="swipeProgressLabel"></div>
+      </div>
+      <div class="match-card-stack" id="matchCardStack"></div>
+      <div class="match-swipe-actions">
+        <button class="match-action-btn match-x" id="swipeX">✕</button>
+        <button class="match-action-btn match-heart" id="swipeHeart">❤️</button>
+      </div>
+      <div class="match-participants" id="swipeParticipants"></div>
+    </div>
+
+    <!-- Screen: Warten auf andere -->
+    <div class="match-screen" id="match-waiting" style="display:none">
+      <div class="empty">
+        <div class="icon">⏳</div>
+        Du bist fertig! Warte auf die anderen …
+      </div>
+      <div class="match-participants" id="waitParticipants"></div>
+    </div>
+
+    <!-- Screen: Duell / Bracket -->
+    <div class="match-screen" id="match-bracket" style="display:none">
+      <div class="match-roomcode">Runde <span id="bracketRoundNum"></span> · Raum-Code: <span id="bracketRoomCode"></span></div>
+      <div class="match-duel" id="matchDuel"></div>
+      <div class="match-duel-waiting" id="duelWaiting" style="display:none">Stimme abgegeben — warte auf die anderen …</div>
+    </div>
+
+    <!-- Screen: Gewinner -->
+    <div class="match-screen" id="match-winner" style="display:none">
+      <div class="match-winner-box">
+        <div class="match-winner-eyebrow">🏆 Euer gemeinsamer Favorit</div>
+        <div id="matchWinnerCard"></div>
+        <button class="btn accent match-btn-full" id="matchAgainBtn" style="max-width:280px">↻ Neue Runde</button>
+      </div>
+    </div>
+
   </div>
+
+  <div class="footnote">Read-only Ansicht deines Obsidian-Vaults · Highlights werden nur lokal in diesem Browser gespeichert, nicht in deinen Notizen</div>
 </div>
 
 <script>
-let originalData = [];
-let activeFilter = 'alle';
+const PALETTE = ["#e8b34c","#4fa8a0","#d98f3f","#3fa679","#8b7fd9","#e2574c","#6bc7c0","#c98fd9","#7fb8e8","#e8d24c"];
 
-// Authentifizierung beim Laden prüfen
-if (sessionStorage.getItem("watchlist_authenticated") === "true") {
-  const overlay = document.getElementById("password-overlay");
-  if(overlay) overlay.remove();
-  loadData();
+let DATA = { movies: [], series: [], collections: [], people: {} };
+let watchlistAll = [];
+
+// ── lokale Bookmarks (read-only Vault, Highlights nur im Browser) ──
+const LS_KEY = "watchlist_bookmarks";
+function loadLocalBookmarks() {
+  try { return JSON.parse(localStorage.getItem(LS_KEY) || "{}"); } catch { return {}; }
 }
-
-async function loadData() {
-  try {
-    const response = await fetch('data.json');
-    originalData = await response.json();
-    
-    // Absteigend sortieren nach ID (neueste zuerst)
-    originalData.sort((a, b) => b.id - a.id);
-    
-    updateGlobalCounter();
-    renderFilters();
-    renderList();
-    renderStats();
-    
-    // Falls der User bereits in einer Match-Session eingeloggt war, Karten vorbereiten
-    if (currentRoomId) {
-      prepareMatchItems();
-    }
-    
-  } catch (error) {
-    console.error('Fehler beim Laden der Daten:', error);
-    document.getElementById('watchlist').innerHTML = '<div class="empty-state">Fehler beim Laden der data.json. Läuft der lokale Server?</div>';
-  }
+function saveLocalBookmarks(obj) {
+  localStorage.setItem(LS_KEY, JSON.stringify(obj));
 }
+let localBookmarks = loadLocalBookmarks();
 
-function updateGlobalCounter() {
-  document.getElementById('global-counter').innerHTML = `Einträge: <strong>${originalData.length}</strong>`;
-}
-
-function renderFilters() {
-  const container = document.getElementById('filter-tags');
-  if(!container) return;
-  
-  const tags = ['alle', 'offen', 'gesehen', 'archiv'];
-  container.innerHTML = tags.map(tag => `
-    <button class="tag-btn ${activeFilter === tag ? 'active' : ''}" onclick="setFilter('${tag}')">
-      ${tag.toUpperCase()}
-    </button>
-  `).join('');
-}
-
-function setFilter(filter) {
-  activeFilter = filter;
-  renderFilters();
-  renderList();
-}
-
-function switchPage(pageId) {
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-  
-  document.getElementById(`page-${pageId}`).classList.add('active');
-  
-  // Finde den passenden Button anhand des onclick-Attributs
-  const btn = Array.from(document.querySelectorAll('.tab-btn')).find(b => b.getAttribute('onclick').includes(`'${pageId}'`));
-  if(btn) btn.classList.add('active');
-  
-  if(pageId === 'match' && originalData.length > 0 && (!matchItems || matchItems.length === 0)) {
-    prepareMatchItems();
-  }
-}
-
-function renderList() {
-  const container = document.getElementById('watchlist');
-  const searchVal = document.getElementById('search').value.toLowerCase();
-  
-  // Status aus dem lokalen Speicher laden
-  const localStatuses = JSON.parse(localStorage.getItem('watchlist_statuses') || '{}');
-  
-  const filtered = originalData.filter(item => {
-    const currentStatus = localStatuses[item.id] || "offen";
-    
-    if (activeFilter === 'offen' && currentStatus !== 'offen') return false;
-    if (activeFilter === 'gesehen' && currentStatus !== 'wahr') return false;
-    if (activeFilter === 'archiv' && currentStatus !== 'archiv') return false;
-    
-    const matchesSearch = 
-      item.title.toLowerCase().includes(searchVal) ||
-      item.vault.toLowerCase().includes(searchVal) ||
-      item.year.toString().includes(searchVal) ||
-      item.genres.some(g => g.toLowerCase().includes(searchVal));
-      
-    return matchesSearch;
-  });
-  
-  if(filtered.length === 0) {
-    container.innerHTML = '<div class="empty-state">Keine Einträge gefunden.</div>';
-    return;
-  }
-  
-  container.innerHTML = filtered.map(item => {
-    const currentStatus = localStatuses[item.id] || "offen";
-    const typeClass = item.type === 'movie' ? 'type-movie' : 'type-show';
-    const typeLabel = item.type === 'movie' ? 'Film' : 'Serie';
-    
-    return `
-      <div class="card">
-        <img class="card-poster" src="${item.poster}" alt="Poster" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'70\' height=\'100\'><rect width=\'100%\' height=\'100%\' fill=\'%231f2330\'/><text x=\'50%\' y=\'50%\' dominant-baseline=\'middle\' text-anchor=\'middle\' fill=\'%23565b70\' font-size=\'10\'>Kein Bild</text></svg>'">
-        <div class="card-content">
-          <div class="card-header">
-            <div class="card-title" title="${item.title}">${item.title}</div>
-          </div>
-          <div class="card-meta">
-            <span class="type-badge ${typeClass}">${typeLabel}</span>
-            <span>•</span>
-            <span>${item.year}</span>
-          </div>
-          <div class="card-genres" title="${item.genres.join(', ')}">${item.genres.join(', ')}</div>
-          <div class="card-footer">
-            <span class="card-vault" title="${item.vault}">${item.vault}</span>
-            <div class="status-select-wrapper">
-              <select class="status-select" data-status="${currentStatus}" onchange="changeStatus(${item.id}, this.value)">
-                <option value="offen" ${currentStatus === 'offen' ? 'selected' : ''}>Offen</option>
-                <option value="wahr" ${currentStatus === 'wahr' ? 'selected' : ''}>Gesehen</option>
-                <option value="archiv" ${currentStatus === 'archiv' ? 'selected' : ''}>Archiv</option>
-              </select>
-            </div>
-          </div>
-        </div>
-      </div>
-    `;
-  }).join('');
-}
-
-function changeStatus(id, newStatus) {
-  const localStatuses = JSON.parse(localStorage.getItem('watchlist_statuses') || '{}');
-  localStatuses[id] = newStatus;
-  localStorage.setItem('watchlist_statuses', JSON.stringify(localStatuses));
-  
-  renderList();
-  renderStats();
-}
-
-document.getElementById('search').addEventListener('input', renderList);
-
-function renderStats() {
-  const localStatuses = JSON.parse(localStorage.getItem('watchlist_statuses') || '{}');
-  
-  let total = originalData.length;
-  let seen = 0;
-  let movies = 0;
-  let shows = 0;
-  
-  const vaultCounts = {};
-  const genreCounts = {};
-  
-  originalData.forEach(item => {
-    const status = localStatuses[item.id] || "offen";
-    if(status === 'wahr') seen++;
-    
-    if(item.type === 'movie') movies++;
-    if(item.type === 'show') shows++;
-    
-    vaultCounts[item.vault] = (vaultCounts[item.vault] || 0) + 1;
-    
-    item.genres.forEach(g => {
-      genreCounts[g] = (genreCounts[g] || 0) + 1;
-    });
-  });
-  
-  document.getElementById('stat-total').textContent = total;
-  document.getElementById('stat-seen').textContent = seen;
-  document.getElementById('stat-movies').textContent = movies;
-  document.getElementById('stat-shows').textContent = shows;
-  
-  // Vault Chart
-  const sortedVaults = Object.entries(vaultCounts).sort((a,b) => b[1] - a[1]);
-  const maxVault = sortedVaults.length > 0 ? sortedVaults[0][1] : 1;
-  document.getElementById('vault-chart').innerHTML = sortedVaults.map(([name, count]) => {
-    const pct = (count / maxVault) * 100;
-    return `
-      <div class="bar-item">
-        <div class="bar-name" title="${name}">${name}</div>
-        <div class="bar-track"><div class="bar-fill" style="width: ${pct}%;"></div></div>
-        <div class="bar-count">${count}</div>
-      </div>
-    `;
-  }).join('');
-  
-  // Genre Chart
-  const sortedGenres = Object.entries(genreCounts).sort((a,b) => b[1] - a[1]).slice(0, 7);
-  const maxGenre = sortedGenres.length > 0 ? sortedGenres[0][1] : 1;
-  document.getElementById('genre-chart').innerHTML = sortedGenres.map(([name, count]) => {
-    const pct = (count / maxGenre) * 100;
-    return `
-      <div class="bar-item">
-        <div class="bar-name" title="${name}">${name}</div>
-        <div class="bar-track"><div class="bar-fill" style="width: ${pct}%; background-color: var(--amber);"></div></div>
-        <div class="bar-count">${count}</div>
-      </div>
-    `;
-  }).join('');
-}
-
-
-// ==========================================
-// SUPABASE CONFIGURATION & INITIALIZATION
-// ==========================================
-const SUPABASE_URL = "https://ozzfkzxyezcjsoichiue.supabase.co/rest/v1/";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im96emZrenh5ZXpjanNvaWNoaXVlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM1OTExMTIsImV4cCI6MjA5OTE2NzExMn0.ugnX6wNt2MrEF4Olf2faxErcg9AC8O1yCogacUrwZwQ";
-
-const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
-// Globale Variablen für das Match-Feature beibehalten
-let currentRoomId = null;
-let currentUserName = null;
-let swipeSubscription = null;
-let allSwipesInRoom = []; // Lokaler Cache für Match-Prüfung
-let matchItems = [];
-let currentMatchIndex = 0;
-
-function prepareMatchItems() {
-  const localStatuses = JSON.parse(localStorage.getItem('watchlist_statuses') || '{}');
-  // Nur Items vom Status "offen" zum Swipen anbieten
-  matchItems = originalData.filter(item => (localStatuses[item.id] || "offen") === "offen");
-  
-  // Mischen (Zufällige Reihenfolge) für echtes Tinder-Feeling
-  for (let i = matchItems.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [matchItems[i], matchItems[j]] = [matchItems[j], matchItems[i]];
-  }
-  
-  currentMatchIndex = 0;
-}
-
-// ==========================================
-// ROOM LOGIC (SUPABASE ERSATZ)
-// ==========================================
-
-// Raum erstellen
-async function createMatchRoom() {
-  const nameInput = document.getElementById("match-name-input").value.trim();
-  if(!nameInput) { alert("Bitte Namen eingeben"); return; }
-  
-  currentUserName = nameInput;
-  // Generiert einen zufälligen 5-stelligen Code (z.B. AB123)
-  currentRoomId = Math.random().toString(36).substring(2, 7).toUpperCase();
-  
-  try {
-    // Raum in Supabase eintragen
-    const { error } = await supabaseClient.from('rooms').insert([{ id: currentRoomId }]);
-    if (error) throw error;
-    
-    initMatchSession();
-  } catch (err) {
-    console.error("Fehler beim Erstellen des Raums:", err);
-    alert("Fehler beim Erstellen des Raums.");
-  }
-}
-
-// Raum beitreten
-async function joinMatchRoom() {
-  const nameInput = document.getElementById("match-name-input").value.trim();
-  const roomInput = document.getElementById("match-room-input").value.trim().toUpperCase();
-  
-  if(!nameInput || !roomInput) { alert("Bitte Name und Raum-ID eingeben"); return; }
-  
-  currentUserName = nameInput;
-  currentRoomId = roomInput;
-  
-  try {
-    // Prüfen, ob der Raum existiert
-    const { data, error } = await supabaseClient
-      .from('rooms')
-      .select('id')
-      .eq('id', currentRoomId)
-      .maybeSingle();
-      
-    if (error) throw error;
-    
-    if(!data) {
-      alert("Raum existiert nicht!");
-      return;
-    }
-    
-    initMatchSession();
-  } catch (err) {
-    console.error("Fehler beim Beitreten:", err);
-    alert("Fehler beim Verbinden mit dem Raum.");
-  }
-}
-
-// Session initialisieren und Realtime-Listener starten
-async function initMatchSession() {
-  document.getElementById("match-setup").style.display = "none";
-  document.getElementById("match-area").style.display = "block";
-  document.getElementById("match-room-display").textContent = "Raum: " + currentRoomId;
-  
-  prepareMatchItems();
-  
-  // 1. Bereits vorhandene Swipes aus der Datenbank laden
-  const { data, error } = await supabaseClient
-    .from('swipes')
-    .select('user_name, item_id, liked')
-    .eq('room_id', currentRoomId);
-    
-  if (!error && data) {
-    allSwipesInRoom = data;
-  }
-
-  // 2. Realtime-Kanal abonnieren für neue Swipes von anderen Usern
-  swipeSubscription = supabaseClient
-    .channel(`room:${currentRoomId}`)
-    .on(
-      'postgres_changes',
-      { event: 'INSERT', schema: 'public', table: 'swipes', filter: `room_id=eq.${currentRoomId}` },
-      (payload) => {
-        const newSwipe = payload.new;
-        allSwipesInRoom.push(newSwipe);
-        
-        // Wenn jemand anderes geliked hat, prüfen wir auf ein Match
-        if (newSwipe.user_name !== currentUserName && newSwipe.liked) {
-          checkMatchOnIncomingSwipe(newSwipe);
-        }
-      }
-    )
-    .subscribe();
-
-  // Erste Karte laden
-  showNextMatchItem();
-}
-
-function leaveMatchRoom() {
-  if (swipeSubscription) {
-    supabaseClient.removeChannel(swipeSubscription);
-  }
-  currentRoomId = null;
-  currentUserName = null;
-  allSwipesInRoom = [];
-  
-  document.getElementById("match-setup").style.display = "block";
-  document.getElementById("match-area").style.display = "none";
-}
-
-function showNextMatchItem() {
-  const card = document.getElementById("match-card");
-  const empty = document.getElementById("match-empty");
-  const buttons = document.getElementById("match-buttons-row");
-  
-  // Überspringe Items, die wir in DIESER Session bereits geswiped haben
-  while (currentMatchIndex < matchItems.length) {
-    const item = matchItems[currentMatchIndex];
-    const alreadySwiped = allSwipesInRoom.some(s => s.user_name === currentUserName && s.item_id === String(item.id));
-    if (!alreadySwiped) break;
-    currentMatchIndex++;
-  }
-  
-  if (currentMatchIndex >= matchItems.length) {
-    card.style.display = "none";
-    buttons.style.display = "none";
-    empty.style.display = "block";
-    return;
-  }
-  
-  card.style.display = "flex";
-  buttons.style.display = "flex";
-  empty.style.display = "none";
-  
-  const item = matchItems[currentMatchIndex];
-  
-  document.getElementById("match-card-title").textContent = item.title;
-  document.getElementById("match-card-year").textContent = item.year;
-  document.getElementById("match-card-genres").textContent = item.genres.join(', ');
-  
-  const typeBadge = document.getElementById("match-card-type");
-  typeBadge.textContent = item.type === 'movie' ? 'Film' : 'Serie';
-  typeBadge.className = 'type-badge ' + (item.type === 'movie' ? 'type-movie' : 'type-show');
-  
-  const img = document.getElementById("match-card-poster");
-  img.src = item.poster;
-  img.onerror = function() {
-    this.src = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='230'><rect width='100%' height='100%' fill='%231f2330'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' fill='%23565b70' font-size='12'>Kein Bild</text></svg>";
-  };
-}
-
-// ==========================================
-// SWIPE LOGIC (SUPABASE ERSATZ)
-// ==========================================
-
-async function handleMatchSwipe(isLiked) {
-  if (!matchItems || matchItems.length === 0 || currentMatchIndex >= matchItems.length) return;
-  
-  const currentItem = matchItems[currentMatchIndex];
-  
-  // Lokale Kopie aktualisieren
-  allSwipesInRoom.push({
-    user_name: currentUserName,
-    item_id: String(currentItem.id),
-    liked: isLiked
-  });
-
-  try {
-    // Swipe in Supabase speichern
-    await supabaseClient.from('swipes').insert([
-      { 
-        room_id: currentRoomId, 
-        user_name: currentUserName, 
-        item_id: String(currentItem.id), 
-        liked: isLiked 
-      }
-    ]);
-  } catch (err) {
-    console.error("Fehler beim Speichern des Swipes:", err);
-  }
-
-  // Wenn wir selbst geliked haben, prüfen wir, ob der andere das auch schon getan hat
-  if (isLiked) {
-    const hasMatch = allSwipesInRoom.some(s => 
-      s.user_name !== currentUserName && 
-      s.item_id === String(currentItem.id) && 
-      s.liked === true
-    );
-    
-    if (hasMatch) {
-      showMatchOverlay(currentItem);
-    }
-  }
-
-  // Weiter zur nächsten Karte
-  currentMatchIndex++;
-  showNextMatchItem();
-}
-
-// Prüft eingehende Live-Swipes von Partnern auf ein Match
-function checkMatchOnIncomingSwipe(newSwipe) {
-  // Haben wir dieses Item selbst auch schon geliked?
-  const weLikedIt = allSwipesInRoom.some(s => 
-    s.user_name === currentUserName && 
-    s.item_id === newSwipe.item_id && 
-    s.liked === true
-  );
-  
-  if (weLikedIt) {
-    // Das passende Item aus deiner data.json-Liste heraussuchen
-    const matchedItem = matchItems.find(item => String(item.id) === newSwipe.item_id);
-    if (matchedItem) {
-      showMatchOverlay(matchedItem);
-    }
-  }
-}
-
-function showMatchOverlay(item) {
-  document.getElementById("success-match-title").textContent = item.title;
-  const img = document.getElementById("success-match-poster");
-  img.src = item.poster;
-  img.onerror = function() {
-    this.src = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='260'><rect width='100%' height='100%' fill='%231f2330'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' fill='%23565b70' font-size='12'>Kein Bild</text></svg>";
-  };
-  document.getElementById("match-success-overlay").style.display = "flex";
-}
-
-document.getElementById("close-match-overlay-btn").onclick = function() {
-  document.getElementById("match-success-overlay").style.display = "none";
+const state = {
+  query: "", typeFilter: "all", genreFilter: "all", serviceFilter: "all",
+  statusFilter: ["unwatched", "watching", "watched"], sortBy: "title", onlyBookmarks: false,
 };
 
+function avg(arr){ return arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : 0; }
+function bayesAvg(avgVal, count, C){ return (avgVal * count) / (count + C); }
+function decade(y){ const n = parseInt(y); return isNaN(n) ? "Unbekannt" : `${Math.floor(n/10)*10}er`; }
+function initials(name){ return name.split(" ").map(w=>w[0]??"").join("").slice(0,2).toUpperCase(); }
+function groupBy(arr, keyFn){
+  const map = {};
+  arr.forEach(e => keyFn(e).forEach(k => { (map[k] ??= []).push(e); }));
+  return map;
+}
 
-// ==========================================
-// PASSWORD SYSTEM (SHA-256)
-// ==========================================
+async function loadData(){
+  try{
+    const res = await fetch("data.json?_=" + Date.now());
+    if(!res.ok) throw new Error("HTTP " + res.status);
+    DATA = await res.json();
+  }catch(err){
+    document.getElementById("genAt").textContent = "⚠️ data.json konnte nicht geladen werden — lief export_vault.py schon?";
+    console.error(err);
+    return;
+  }
+  watchlistAll = [...DATA.movies, ...DATA.series].map(e => ({
+    ...e,
+    bookmarked: (localBookmarks[e.path] !== undefined) ? localBookmarks[e.path] : e.bookmarked,
+  }));
+  const total = DATA.movies.length + DATA.series.length;
+  document.getElementById("genAt").textContent =
+    `${total} Titel · ${DATA.collections.length} Collections`;
+  initFilters();
+  initMatchFilters();
+  render();
+  renderUebersicht();
+}
+
+// ═══════════════ TABS ═══════════════
+document.querySelectorAll(".ticket-tab").forEach(tab => {
+  tab.addEventListener("click", () => {
+    document.querySelectorAll(".ticket-tab").forEach(t => t.classList.remove("active"));
+    document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
+    tab.classList.add("active");
+    document.getElementById("view-" + tab.dataset.tab).classList.add("active");
+  });
+});
+
+// ═══════════════ WATCHLIST: Filter-Optionen befüllen ═══════════════
+function initFilters(){
+  const allGenres = [...new Set(watchlistAll.flatMap(e => e.genres))].sort((a,b)=>a.localeCompare(b,"de"));
+  const allServices = [...new Set(watchlistAll.flatMap(e => e.streaming))].sort((a,b)=>a.localeCompare(b,"de"));
+  const genreSelect = document.getElementById("genreSelect");
+  allGenres.forEach(g => genreSelect.add(new Option(g, g)));
+  const serviceSelect = document.getElementById("serviceSelect");
+  allServices.forEach(s => serviceSelect.add(new Option(s, s)));
+}
+
+document.getElementById("searchInput").addEventListener("input", e => { state.query = e.target.value; render(); });
+document.getElementById("typeSelect").addEventListener("change", e => {
+  state.typeFilter = e.target.value; updateFilterVisibility(); render();
+});
+document.getElementById("genreSelect").addEventListener("change", e => { state.genreFilter = e.target.value; render(); });
+document.getElementById("serviceSelect").addEventListener("change", e => { state.serviceFilter = e.target.value; render(); });
+
+document.querySelectorAll("#statusChips .chip").forEach(chip => {
+  chip.addEventListener("click", () => {
+    const key = chip.dataset.status;
+    if(state.statusFilter.includes(key)){
+      if(state.statusFilter.length === 1) return;
+      state.statusFilter = state.statusFilter.filter(x => x !== key);
+    } else {
+      state.statusFilter = [...state.statusFilter, key];
+    }
+    chip.classList.toggle("active", state.statusFilter.includes(key));
+    render();
+  });
+});
+
+document.querySelectorAll("#sortGroup .sortbtn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    state.sortBy = btn.dataset.sort;
+    document.querySelectorAll("#sortGroup .sortbtn").forEach(b => b.classList.toggle("active", b === btn));
+    render();
+  });
+});
+
+const bmFilterBtn = document.getElementById("bmFilterBtn");
+bmFilterBtn.addEventListener("click", () => {
+  state.onlyBookmarks = !state.onlyBookmarks;
+  bmFilterBtn.classList.toggle("bm-active", state.onlyBookmarks);
+  render();
+});
+
+function updateFilterVisibility(){
+  const isCollection = state.typeFilter === "collection";
+  document.getElementById("statusChips").style.display = isCollection ? "none" : "flex";
+  document.getElementById("genreSelect").style.display = isCollection ? "none" : "";
+  document.getElementById("serviceSelect").style.display = isCollection ? "none" : "";
+  bmFilterBtn.style.display = isCollection ? "none" : "";
+  document.getElementById("randomBtn").style.display = isCollection ? "none" : "";
+  document.querySelector('#sortGroup [data-sort="year"]').style.display = isCollection ? "none" : "";
+  if(isCollection) document.getElementById("spotlight").classList.remove("visible");
+}
+
+// ═══════════════ WATCHLIST: Filtern / Sortieren / Rendern ═══════════════
+function getFiltered(){
+  const q = state.query.toLowerCase().trim();
+  return watchlistAll.filter(e => {
+    if(state.onlyBookmarks && !e.bookmarked) return false;
+    if(!state.statusFilter.includes(e.status)) return false;
+    if(state.typeFilter === "film" && e.type !== "🎬 Film") return false;
+    if(state.typeFilter === "serie" && e.type !== "📺 Serie") return false;
+    if(state.genreFilter !== "all" && !e.genres.includes(state.genreFilter)) return false;
+    if(state.serviceFilter !== "all" && !e.streaming.includes(state.serviceFilter)) return false;
+    if(q){
+      const hay = [e.title, ...e.actors, ...e.directors, e.year, ...e.genres, ...e.streaming].join(" ").toLowerCase();
+      if(!hay.includes(q)) return false;
+    }
+    return true;
+  });
+}
+function sortEntries(arr){
+  return [...arr].sort((a,b) => {
+    if(state.sortBy === "year") return (parseInt(b.year)||0) - (parseInt(a.year)||0);
+    if(state.sortBy === "rating") return (b.rating ?? -1) - (a.rating ?? -1);
+    return a.title.localeCompare(b.title, "de");
+  });
+}
+function badgeClass(status){
+  return status === "watching" ? "badge badge-watching" : status === "watched" ? "badge badge-watched" : "badge badge-unwatched";
+}
+function badgeLabel(status){
+  return status === "watching" ? "▶ Am Schauen" : status === "watched" ? "✓ Gesehen" : "◌ Geplant";
+}
+
+function obsidianLink(path){
+  if(!DATA.vaultName) return null;
+  const noExt = path.replace(/\.md$/, "");
+  return `obsidian://open?vault=${encodeURIComponent(DATA.vaultName)}&file=${encodeURIComponent(noExt)}`;
+}
+
+function renderCard(e){
+  const card = document.createElement("div");
+  card.className = "card";
+  card.title = "In Obsidian öffnen";
+  card.addEventListener("click", (ev) => {
+    if(ev.target.closest(".bm-btn")) return;
+    const link = obsidianLink(e.path);
+    if(link) window.location.href = link;
+  });
+
+  if(e.image) card.innerHTML += `<img class="card-img" src="${e.image}" alt="" loading="lazy">`;
+  else card.innerHTML += `<div class="card-ph">${e.type.split(" ")[0]}</div>`;
+
+  const bmBtn = document.createElement("div");
+  bmBtn.className = "bm-btn" + (e.bookmarked ? " on" : "");
+  bmBtn.textContent = e.bookmarked ? "🔖" : "🏷️";
+  bmBtn.title = "Highlight nur lokal in diesem Browser merken";
+  bmBtn.addEventListener("click", (ev) => {
+    ev.stopPropagation();
+    e.bookmarked = !e.bookmarked;
+    localBookmarks[e.path] = e.bookmarked;
+    saveLocalBookmarks(localBookmarks);
+    bmBtn.classList.toggle("on", e.bookmarked);
+    bmBtn.textContent = e.bookmarked ? "🔖" : "🏷️";
+  });
+  card.appendChild(bmBtn);
+
+  const badge = document.createElement("div");
+  badge.className = badgeClass(e.status);
+  badge.textContent = badgeLabel(e.status);
+  card.appendChild(badge);
+
+  const body = document.createElement("div");
+  body.className = "card-body";
+  body.innerHTML = `
+    <div class="card-title">${e.title}</div>
+    <div class="card-meta">${[e.type.split(" ")[1], e.year, e.streaming[0]].filter(Boolean).join(" · ")}</div>
+    ${e.rating != null ? `<div class="card-rating">★ ${e.rating}/10</div>` : ""}
+  `;
+  card.appendChild(body);
+  return card;
+}
+
+function renderCollectionCard(c){
+  const card = document.createElement("div");
+  card.className = "card";
+  card.title = "In Obsidian öffnen";
+  card.addEventListener("click", () => {
+    const link = obsidianLink(c.path);
+    if(link) window.location.href = link;
+  });
+  const collage = document.createElement("div");
+  collage.className = "coll-collage n" + Math.min(c.images.length, 4);
+  c.images.slice(0,4).forEach(src => { const img = document.createElement("img"); img.src = src; img.loading="lazy"; collage.appendChild(img); });
+  card.appendChild(collage);
+  const body = document.createElement("div");
+  body.className = "card-body";
+  body.innerHTML = `
+    <div class="card-title">${c.title}</div>
+    <div class="card-meta">${c.itemCount} Titel</div>
+    <div class="card-rating">${c.rating != null ? "Median ★ " + c.rating.toFixed(1) + "/10" : "Noch keine Bewertung"}</div>
+  `;
+  card.appendChild(body);
+  return card;
+}
+
+function render(){
+  const grid = document.getElementById("grid");
+  grid.innerHTML = "";
+
+  if(state.typeFilter === "collection"){
+    const q = state.query.toLowerCase().trim();
+    const filtered = DATA.collections.filter(c => !q || c.title.toLowerCase().includes(q))
+      .sort((a,b) => state.sortBy === "rating" ? (b.rating ?? -1)-(a.rating ?? -1) : a.title.localeCompare(b.title,"de"));
+    document.getElementById("resultCount").textContent = `${filtered.length} von ${DATA.collections.length} Collections`;
+    if(filtered.length === 0){
+      grid.innerHTML = `<div class="empty" style="grid-column:1/-1"><div class="icon">🗂️</div>Keine Collections gefunden.</div>`;
+      return;
+    }
+    filtered.forEach(c => grid.appendChild(renderCollectionCard(c)));
+    return;
+  }
+
+  const filtered = sortEntries(getFiltered());
+  document.getElementById("resultCount").textContent = `${filtered.length} von ${watchlistAll.length} Titeln`;
+  if(filtered.length === 0){
+    grid.innerHTML = `<div class="empty" style="grid-column:1/-1"><div class="icon">${state.onlyBookmarks ? "🔖" : "🔍"}</div>${state.onlyBookmarks ? "Noch keine Highlights gesetzt." : "Keine Titel gefunden."}</div>`;
+    return;
+  }
+  filtered.forEach(e => grid.appendChild(renderCard(e)));
+}
+
+// ── Spotlight ──
+function showSpotlight(e){
+  const el = document.getElementById("spotlight");
+  el.classList.add("visible");
+  el.innerHTML = `
+    <div class="close" id="spotClose">✕</div>
+    ${e.image ? `<img src="${e.image}" alt="">` : `<div class="ph">${e.type.split(" ")[0]}</div>`}
+    <div class="info">
+      <div class="eyebrow">🎲 Zufälliger Vorschlag</div>
+      <div class="title" id="spotTitle" style="cursor:pointer">${e.title}</div>
+      <div class="meta">${[e.type, e.year, e.streaming.join(", "), e.rating ? `★ ${e.rating}/10` : ""].filter(Boolean).join(" · ")}</div>
+      <div class="tags">
+        ${e.genres.slice(0,5).map(g => `<div class="tag">${g}</div>`).join("")}
+        ${e.directors.length ? `<div class="tag">Regie: ${e.directors[0]}</div>` : ""}
+      </div>
+      <button class="btn accent" id="rerollBtn">↻ Nochmal würfeln</button>
+    </div>
+  `;
+  document.getElementById("spotClose").addEventListener("click", () => el.classList.remove("visible"));
+  document.getElementById("spotTitle").addEventListener("click", () => {
+    const link = obsidianLink(e.path);
+    if(link) window.location.href = link;
+  });
+  document.getElementById("rerollBtn").addEventListener("click", () => {
+    const pool = sortEntries(getFiltered());
+    if(pool.length) showSpotlight(pool[Math.floor(Math.random()*pool.length)]);
+  });
+}
+document.getElementById("randomBtn").addEventListener("click", () => {
+  const pool = sortEntries(getFiltered());
+  if(pool.length) showSpotlight(pool[Math.floor(Math.random()*pool.length)]);
+});
+
+// ═══════════════════════════════════════════════════════════
+// ─── ÜBERSICHT-TAB ────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════
+function getPersonImage(name){ return DATA.people[name] || null; }
+
+function renderUebersicht(){
+  const root = document.getElementById("uebersichtRoot");
+  root.innerHTML = "";
+
+  const allRaw = watchlistAll;
+  const all = allRaw.filter(e => e.hasRating && !isNaN(e.rating));
+  const watched = all.filter(e => e.watched && !e.watchingNow);
+
+  if(watched.length === 0){
+    root.innerHTML = `<div class="empty"><div class="icon">📊</div>Noch keine bewerteten, gesehenen Titel für Statistiken vorhanden.</div>`;
+    return;
+  }
+
+  const GENRE_MIN = 3, BAYES_C = 3, ACTOR_MIN = 3, DIRECTOR_MIN = 2, TOP_SERVICE_GENRES = 3;
+
+  function topGenresForTitles(titles, topN = TOP_SERVICE_GENRES){
+    const byG = groupBy(titles, e => e.genres);
+    return Object.entries(byG).map(([name, arr]) => {
+      const a = avg(arr.map(x=>x.rating));
+      return { name, avg: a, count: arr.length, bayesAvg: bayesAvg(a, arr.length, BAYES_C) };
+    }).filter(g => g.count >= GENRE_MIN).sort((a,b)=> b.bayesAvg-a.bayesAvg || b.count-a.count).slice(0, topN);
+  }
+
+  const byService = groupBy(watched, e => e.streaming);
+  const byGenre = groupBy(watched, e => e.genres);
+  const byDecade = groupBy(watched, e => [decade(e.year)]);
+  const byActor = groupBy(watched, e => e.actors);
+  const byDirector = groupBy(watched, e => e.directors);
+
+  const rankedServices = Object.entries(byService).map(([name, titles]) => ({
+    name, titles, count: titles.length,
+    avg: avg(titles.map(t=>t.rating)),
+    stddev: Math.sqrt(avg(titles.map(t => Math.pow(t.rating - avg(titles.map(x=>x.rating)), 2)))),
+    topGenres: topGenresForTitles(titles),
+  })).sort((a,b)=> b.avg-a.avg || b.count-a.count);
+
+  const rankedGenres = Object.entries(byGenre).map(([name, titles]) => ({
+    name, count: titles.length, avg: avg(titles.map(t=>t.rating))
+  })).sort((a,b)=> b.avg-a.avg || b.count-a.count);
+
+  const rankedDecades = Object.entries(byDecade).map(([name, titles]) => ({
+    name, count: titles.length, avg: avg(titles.map(t=>t.rating))
+  })).sort((a,b)=> a.name.localeCompare(b.name));
+
+  function rankPeople(byMap, minCount){
+    const entries = Object.entries(byMap).map(([name, titles]) => {
+      const a = avg(titles.map(t=>t.rating));
+      return { name, count: titles.length, avg: a, bayesAvg: bayesAvg(a, titles.length, BAYES_C),
+               best: [...titles].sort((x,y)=>y.rating-x.rating)[0] };
+    });
+    return {
+      byCount: [...entries].sort((a,b)=> b.count-a.count),
+      byAvg: [...entries].filter(e=>e.count>=minCount).sort((a,b)=> b.bayesAvg-a.bayesAvg),
+    };
+  }
+  const actorRanks = rankPeople(byActor, ACTOR_MIN);
+  const directorRanks = rankPeople(byDirector, DIRECTOR_MIN);
+
+  // ── 1. Streaming-Dienste ──
+  addSection(root, "Streaming-Dienste im Vergleich", `Sortiert nach Ø-Bewertung deiner gesehenen Titel`);
+  const svcCard = addCard(root);
+  rankedServices.forEach((s, i) => {
+    const col = PALETTE[i % PALETTE.length];
+    const row = document.createElement("div");
+    row.className = "rank-row";
+    row.innerHTML = `
+      <div class="rank-num">${i+1}.</div>
+      <div class="rank-avatar" style="background:${col}22;color:${col}">${initials(s.name)}</div>
+      <div class="rank-info">
+        <div class="rank-name">${s.name}</div>
+        <div class="rank-sub">${s.topGenres.map(g=>g.name).join(" · ") || `${s.count} Titel`}</div>
+      </div>
+      <div class="rank-right">
+        <div class="rank-score">Ø ${s.avg.toFixed(1)}</div>
+        <div class="rank-avg">${s.count}×</div>
+      </div>`;
+    svcCard.appendChild(row);
+  });
+
+  // ── 2. Top Genres ──
+  addSection(root, `Top Genres`, "Nach Ø-Bewertung sortiert");
+  const genreCard = addCard(root);
+  const maxGenreCount = Math.max(...rankedGenres.map(g=>g.count));
+  rankedGenres.slice(0, 12).forEach((g, i) => {
+    addBarRow(genreCard, g.name, g.avg, g.count, maxGenreCount, PALETTE[i % PALETTE.length]);
+  });
+
+  // ── 3. Jahrzehnte ──
+  addSection(root, "Jahrzehnte", "Ø-Bewertung nach Erscheinungsdekade");
+  const decCard = addCard(root);
+  const maxDecCount = Math.max(...rankedDecades.map(d=>d.count));
+  rankedDecades.forEach((d, i) => addBarRow(decCard, d.name, d.avg, d.count, maxDecCount, PALETTE[i % PALETTE.length]));
+
+  // ── 4/5. Schauspieler & Regisseure (sortierbar) ──
+  const twoCol = document.createElement("div");
+  twoCol.className = "two-col";
+  root.appendChild(twoCol);
+  addPeopleSection(twoCol, "Top Schauspieler:innen", actorRanks, 15);
+  addPeopleSection(twoCol, "Top Regisseur:innen", directorRanks, 10);
+
+  // ── 6. Konsistenz ──
+  addSection(root, "Konsistenz der Streaming-Dienste", "σ = Standardabweichung · kleiner Wert = konstant gute Qualität");
+  const konsCard = addCard(root);
+  const sortedByConsistency = [...rankedServices].sort((a,b)=>a.stddev-b.stddev);
+  const maxStd = Math.max(...sortedByConsistency.map(s=>s.stddev)) || 1;
+  sortedByConsistency.forEach(s => {
+    const pct = Math.round((s.stddev/maxStd)*100);
+    const col = pct < 33 ? "var(--green)" : pct < 66 ? "var(--amber)" : "var(--red)";
+    const row = document.createElement("div");
+    row.className = "bar-row";
+    row.innerHTML = `
+      <div class="bar-name">${s.name}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:${Math.max(pct,2)}%;background:${col}"></div></div>
+      <div class="bar-val">σ ${s.stddev.toFixed(2)} · Ø ${s.avg.toFixed(1)}</div>`;
+    konsCard.appendChild(row);
+  });
+
+  // ── 7. Rewatch-Kandidaten ──
+  const rewatchList = [...watched].filter(e => e.rating >= 8.5).sort((a,b)=>b.rating-a.rating);
+  if(rewatchList.length){
+    addSection(root, "⭐ Rewatch-Kandidaten (≥ 8.5/10)");
+    const rwCard = addCard(root);
+    const covers = document.createElement("div");
+    covers.className = "covers";
+    rewatchList.forEach(e => {
+      const tile = document.createElement("div");
+      tile.className = "tile";
+      tile.innerHTML = `
+        ${e.image ? `<img src="${e.image}" loading="lazy">` : `<div class="ph">${e.type.split(" ")[0]}</div>`}
+        <div class="tile-lbl">${e.title}</div>
+        <div class="tile-r">${e.rating}/10</div>`;
+      covers.appendChild(tile);
+    });
+    rwCard.appendChild(covers);
+  }
+
+  // ── 8. Underrated / Overrated ──
+  const withBoth = watched.filter(e => e.onlineRating != null && !isNaN(e.onlineRating));
+  if(withBoth.length){
+    const withDiff = withBoth.map(e => ({...e, diff: Math.round((e.rating - e.onlineRating)*10)/10}));
+    const underrated = [...withDiff].filter(e=>e.diff>0).sort((a,b)=>b.diff-a.diff).slice(0,10);
+    const overrated = [...withDiff].filter(e=>e.diff<0).sort((a,b)=>a.diff-b.diff).slice(0,10);
+
+    function diffRow(e, label, color){
+      const row = document.createElement("div");
+      row.className = "diff-row";
+      row.innerHTML = `
+        ${e.image ? `<img class="diff-img" src="${e.image}" loading="lazy">` : `<div class="diff-img"></div>`}
+        <div class="diff-info">
+          <div class="diff-title">${e.title}</div>
+          <div class="diff-sub">${e.type} · ${e.year} · Ø online ${e.onlineRating}/10</div>
+        </div>
+        <div class="diff-score">
+          <div class="diff-rating">${e.rating}/10</div>
+          <div class="diff-delta" style="color:${color}">${label}</div>
+        </div>`;
+      return row;
+    }
+    if(underrated.length){
+      addSection(root, "💎 Underrated", "Deine Bewertung liegt deutlich über dem Online-Schnitt");
+      const c = addCard(root);
+      underrated.forEach(e => c.appendChild(diffRow(e, `+${e.diff}`, "var(--green)")));
+    }
+    if(overrated.length){
+      addSection(root, "📉 Overrated", "Deine Bewertung liegt deutlich unter dem Online-Schnitt");
+      const c = addCard(root);
+      overrated.forEach(e => c.appendChild(diffRow(e, `${e.diff}`, "var(--red)")));
+    }
+  }
+}
+
+function addSection(root, title, hint){
+  const label = document.createElement("div");
+  label.className = "section-label";
+  label.textContent = title;
+  root.appendChild(label);
+  if(hint){
+    const h = document.createElement("div");
+    h.className = "hint";
+    h.textContent = hint;
+    root.appendChild(h);
+  }
+}
+function addCard(root){
+  const card = document.createElement("div");
+  card.className = "stat-card";
+  root.appendChild(card);
+  return card;
+}
+function addBarRow(card, name, avgVal, count, maxCount, col){
+  const row = document.createElement("div");
+  row.className = "bar-row";
+  const pct = Math.max((count/maxCount)*100, 4);
+  row.innerHTML = `
+    <div class="bar-name">${name}</div>
+    <div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${col}"></div></div>
+    <div class="bar-val">Ø ${avgVal.toFixed(1)} · ${count}×</div>`;
+  card.appendChild(row);
+}
+
+function addPeopleSection(container, title, ranks, topN){
+  const wrap = document.createElement("div");
+  const label = document.createElement("div");
+  label.className = "section-label";
+  label.style.marginTop = "0";
+  label.textContent = title;
+  wrap.appendChild(label);
+
+  const card = document.createElement("div");
+  card.className = "stat-card";
+  const toggles = document.createElement("div");
+  toggles.className = "toggle-row";
+  toggles.innerHTML = `<div class="toggle-btn active" data-mode="count">📊 Häufigkeit</div><div class="toggle-btn" data-mode="avg">⭐ Bewertung</div>`;
+  card.appendChild(toggles);
+  const list = document.createElement("div");
+  card.appendChild(list);
+  wrap.appendChild(card);
+  container.appendChild(wrap);
+
+  let mode = "count";
+  function renderList(){
+    list.innerHTML = "";
+    const sorted = (mode === "avg" ? ranks.byAvg : ranks.byCount).slice(0, topN);
+    sorted.forEach((p, i) => {
+      const col = PALETTE[i % PALETTE.length];
+      const img = getPersonImage(p.name);
+      const row = document.createElement("div");
+      row.className = "rank-row";
+      row.innerHTML = `
+        <div class="rank-num">${i+1}.</div>
+        <div class="rank-avatar" style="background:${col}22;color:${col}">${img ? `<img src="${img}">` : initials(p.name)}</div>
+        <div class="rank-info">
+          <div class="rank-name">${p.name}</div>
+          <div class="rank-sub">Bester Titel: ${p.best.title} (${p.best.rating}/10)</div>
+        </div>
+        <div class="rank-right">
+          <div class="rank-score">${mode === "avg" ? p.bayesAvg.toFixed(1)+"★" : p.count+"×"}</div>
+          <div class="rank-avg">Ø ${p.avg.toFixed(1)}/10</div>
+        </div>`;
+      list.appendChild(row);
+    });
+  }
+  toggles.querySelectorAll(".toggle-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      mode = btn.dataset.mode;
+      toggles.querySelectorAll(".toggle-btn").forEach(b => b.classList.toggle("active", b === btn));
+      renderList();
+    });
+  });
+  renderList();
+}
+
+// ═══════════════════════════════════════════════════════════
+// ─── MATCH-TAB (geräteübergreifender Swipe-Modus via Firebase) ─
+// ═══════════════════════════════════════════════════════════
+
+// Trag hier deine Firebase-Projekt-Konfiguration ein (siehe README, Abschnitt "Match-Funktion einrichten"):
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyDAMrqsvNZ0huMIhW_nolsKaZTOikB8CXc",
+  authDomain: "whattowatch-f5d33.firebaseapp.com",
+  databaseURL: "https://whattowatch-f5d33-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "whattowatch-f5d33",
+};
+
+let matchDb = null;
+let matchRoomRef = null;
+let matchState = { room: null, name: null, pool: [], pathToEntry: {} };
+
+function initFirebase(){
+  if(!FIREBASE_CONFIG.databaseURL){
+    document.getElementById("match-noconfig").style.display = "";
+    return false;
+  }
+  try{
+    firebase.initializeApp(FIREBASE_CONFIG);
+    matchDb = firebase.database();
+    document.getElementById("match-lobby").style.display = "";
+    return true;
+  }catch(err){
+    console.error(err);
+    document.getElementById("match-noconfig").style.display = "";
+    return false;
+  }
+}
+
+function showMatchScreen(id){
+  document.querySelectorAll(".match-screen").forEach(s => s.style.display = "none");
+  document.getElementById(id).style.display = "";
+}
+
+function sanitizeKey(s){
+  return s.trim().replace(/[.#$\[\]\/]/g, "_").slice(0, 24);
+}
+function genRoomCode(){
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // ohne 0/O/1/I zur besseren Lesbarkeit
+  let code = "";
+  for(let i=0;i<4;i++) code += chars[Math.floor(Math.random()*chars.length)];
+  return code;
+}
+
+function initMatchFilters(){
+  const genres = [...new Set(watchlistAll.flatMap(e => e.genres))].sort((a,b)=>a.localeCompare(b,"de"));
+  const services = [...new Set(watchlistAll.flatMap(e => e.streaming))].sort((a,b)=>a.localeCompare(b,"de"));
+  const g = document.getElementById("createGenre");
+  genres.forEach(x => g.add(new Option(x,x)));
+  const s = document.getElementById("createService");
+  services.forEach(x => s.add(new Option(x,x)));
+}
+
+function buildMatchPool(filters){
+  return watchlistAll.filter(e => {
+    if(filters.type === "film" && e.type !== "🎬 Film") return false;
+    if(filters.type === "serie" && e.type !== "📺 Serie") return false;
+    if(filters.genre !== "all" && !e.genres.includes(filters.genre)) return false;
+    if(filters.service !== "all" && !e.streaming.includes(filters.service)) return false;
+    return true;
+  }).map(e => e.path);
+}
+
+document.getElementById("createRoomBtn").addEventListener("click", async () => {
+  const name = document.getElementById("createName").value.trim();
+  const errEl = document.getElementById("createError");
+  errEl.textContent = "";
+  if(!matchDb){ errEl.textContent = "Match-Funktion ist nicht eingerichtet."; return; }
+  if(!name){ errEl.textContent = "Bitte einen Profilnamen eingeben."; return; }
+  const filters = {
+    type: document.getElementById("createType").value,
+    genre: document.getElementById("createGenre").value,
+    service: document.getElementById("createService").value,
+  };
+  const goal = Math.max(3, parseInt(document.getElementById("createGoal").value) || 15);
+  const poolPaths = buildMatchPool(filters);
+  if(poolPaths.length < 4){ errEl.textContent = "Zu wenige Titel mit diesen Filtern (mind. 4 nötig)."; return; }
+
+  const code = genRoomCode();
+  const pool = {};
+  poolPaths.forEach((p, i) => pool[i] = p);
+
+  try{
+    await matchDb.ref("rooms/" + code).set({
+      createdAt: Date.now(),
+      filters, likeGoal: goal, pool,
+      phase: "swiping",
+      participants: {},
+    });
+    await joinExistingRoom(code, name);
+  }catch(err){
+    console.error(err);
+    errEl.textContent = "Fehler beim Erstellen — Firebase-Konfiguration prüfen.";
+  }
+});
+
+document.getElementById("joinRoomBtn").addEventListener("click", async () => {
+  const name = document.getElementById("joinName").value.trim();
+  const code = document.getElementById("joinCode").value.trim().toUpperCase();
+  const errEl = document.getElementById("joinError");
+  errEl.textContent = "";
+  if(!matchDb){ errEl.textContent = "Match-Funktion ist nicht eingerichtet."; return; }
+  if(!name || !code){ errEl.textContent = "Bitte Profilname und Raum-Code eingeben."; return; }
+  try{
+    const snap = await matchDb.ref("rooms/" + code).once("value");
+    if(!snap.exists()){ errEl.textContent = "Diesen Raum-Code gibt es nicht."; return; }
+    await joinExistingRoom(code, name);
+  }catch(err){
+    console.error(err);
+    errEl.textContent = "Fehler beim Beitreten — Firebase-Konfiguration prüfen.";
+  }
+});
+
+async function joinExistingRoom(code, name){
+  const key = sanitizeKey(name);
+  matchState.room = code;
+  matchState.name = key;
+  const snap = await matchDb.ref("rooms/" + code).once("value");
+  const room = snap.val();
+  matchState.pool = Object.entries(room.pool || {});
+  matchState.pathToEntry = {};
+  watchlistAll.forEach(e => matchState.pathToEntry[e.path] = e);
+
+  const existing = room.participants && room.participants[key];
+  if(!existing){
+    await matchDb.ref(`rooms/${code}/participants/${key}`).set({
+      joinedAt: Date.now(), swiped: {}, likeCount: 0, ready: false,
+    });
+  }
+  attachRoomListener(code);
+}
+
+function attachRoomListener(code){
+  if(matchRoomRef) matchRoomRef.off();
+  matchRoomRef = matchDb.ref("rooms/" + code);
+  matchRoomRef.on("value", snap => {
+    const room = snap.val();
+    if(room) handleRoomUpdate(room);
+  });
+}
+
+function getEntry(path){ return matchState.pathToEntry[path] || null; }
+
+function renderMiniCard(container, entry){
+  container.innerHTML = "";
+  if(entry && entry.image){
+    const img = document.createElement("img");
+    img.src = entry.image; img.loading = "lazy";
+    container.appendChild(img);
+  } else {
+    const ph = document.createElement("div");
+    ph.className = "match-card-ph";
+    ph.textContent = entry ? entry.type.split(" ")[0] : "🎬";
+    container.appendChild(ph);
+  }
+}
+
+// ── Haupt-Dispatcher: reagiert auf jede Änderung im Raum ──
+function handleRoomUpdate(room){
+  const me = room.participants && room.participants[matchState.name];
+  if(!me) return;
+
+  if(room.phase === "swiping"){
+    if(me.ready){
+      renderParticipants("waitParticipants", room.participants, room.likeGoal);
+      showMatchScreen("match-waiting");
+    } else {
+      renderSwipeScreen(room, me);
+      showMatchScreen("match-swipe");
+    }
+    maybeAdvanceToBracket(room);
+  } else if(room.phase === "bracket"){
+    renderBracketScreen(room);
+    showMatchScreen("match-bracket");
+    maybeAdvanceBracketRound(room);
+  } else if(room.phase === "done"){
+    renderWinnerScreen(room);
+    showMatchScreen("match-winner");
+  }
+}
+
+// ── Swipe-Screen ──
+function renderSwipeScreen(room, me){
+  document.getElementById("swipeRoomCode").textContent = matchState.room;
+  const goal = room.likeGoal;
+  const likeCount = me.likeCount || 0;
+  document.getElementById("swipeProgressFill").style.width = Math.min(100, (likeCount/goal)*100) + "%";
+  document.getElementById("swipeProgressLabel").textContent = `❤️ ${likeCount} / ${goal}`;
+  renderParticipants("swipeParticipants", room.participants, goal);
+
+  const swiped = me.swiped || {};
+  const poolKeys = Object.keys(room.pool);
+  const nextIdx = poolKeys.find(idx => swiped[idx] === undefined);
+  const stack = document.getElementById("matchCardStack");
+  stack.innerHTML = "";
+  if(nextIdx === undefined){
+    stack.innerHTML = `<div class="match-empty-deck">🎬 Keine weiteren Titel mehr im Pool.<br>Du hast ${likeCount} von ${goal} Likes.</div>`;
+    markReady();
+    return;
+  }
+  const entry = getEntry(room.pool[nextIdx]);
+  const card = document.createElement("div");
+  card.className = "match-card";
+  card.dataset.idx = nextIdx;
+  const imgWrap = document.createElement("div");
+  imgWrap.style.cssText = "flex:1;display:flex;min-height:0;overflow:hidden;";
+  renderMiniCard(imgWrap, entry);
+  card.appendChild(imgWrap);
+  const info = document.createElement("div");
+  info.className = "match-card-info";
+  info.innerHTML = entry ? `
+    <div class="match-card-title">${entry.title}</div>
+    <div class="match-card-meta">${[entry.type, entry.year, entry.genres.slice(0,2).join(", ")].filter(Boolean).join(" · ")}</div>` : "";
+  card.appendChild(info);
+  stack.appendChild(card);
+}
+
+async function doSwipe(liked){
+  const card = document.querySelector("#matchCardStack .match-card");
+  if(!card) return;
+  const idx = card.dataset.idx;
+  const room = matchState.room, name = matchState.name;
+  await matchDb.ref(`rooms/${room}/participants/${name}/swiped/${idx}`).set(liked ? "like" : "dislike");
+  if(liked){
+    await matchDb.ref(`rooms/${room}/participants/${name}/likeCount`).transaction(v => (v||0)+1);
+  }
+}
+document.getElementById("swipeHeart").addEventListener("click", () => doSwipe(true));
+document.getElementById("swipeX").addEventListener("click", () => doSwipe(false));
+
+async function markReady(){
+  const ref = matchDb.ref(`rooms/${matchState.room}/participants/${matchState.name}/ready`);
+  const snap = await ref.once("value");
+  if(snap.val() !== true) await ref.set(true);
+}
+
+function renderParticipants(containerId, participants, goal){
+  const el = document.getElementById(containerId);
+  el.innerHTML = "";
+  Object.entries(participants || {}).forEach(([name, p]) => {
+    const chip = document.createElement("div");
+    chip.className = "match-participant-chip" + (p.ready ? " ready" : "");
+    chip.textContent = p.ready ? `✅ ${name}` : `${name} ❤️${p.likeCount||0}/${goal}`;
+    el.appendChild(chip);
+  });
+}
+
+// ── Übergang Swiping → Bracket (deterministisch, per Transaction konfliktfrei) ──
+async function maybeAdvanceToBracket(room){
+  const participants = room.participants || {};
+  const names = Object.keys(participants);
+  if(names.length === 0 || !names.every(n => participants[n].ready)) return;
+
+  const poolEntries = Object.entries(room.pool || {});
+  let matches = poolEntries
+    .filter(([idx]) => names.every(n => (participants[n].swiped||{})[idx] === "like"))
+    .map(([idx]) => idx);
+  if(matches.length === 0){
+    const counts = poolEntries.map(([idx]) => [idx, names.filter(n => (participants[n].swiped||{})[idx] === "like").length]);
+    const maxCount = Math.max(0, ...counts.map(c => c[1]));
+    if(maxCount > 0) matches = counts.filter(c => c[1] === maxCount).map(c => c[0]);
+  }
+  if(matches.length === 0){
+    matches = poolEntries.slice(0, Math.min(8, poolEntries.length)).map(([idx]) => idx);
+  }
+  matches.sort((a,b) => parseInt(a)-parseInt(b));
+
+  await matchDb.ref(`rooms/${matchState.room}/phase`).transaction(
+    cur => (cur === "swiping" ? "bracket" : undefined),
+    async (err, committed) => {
+      if(!committed) return;
+      if(matches.length === 1){
+        await matchDb.ref(`rooms/${matchState.room}`).update({phase:"done", winner: matches[0]});
+      } else {
+        const pairs = {};
+        for(let i=0;i<matches.length;i+=2){
+          const b = matches[i+1] !== undefined ? matches[i+1] : null;
+          pairs[i/2] = { a: matches[i], b, votes: {}, winner: b === null ? matches[i] : null };
+        }
+        await matchDb.ref(`rooms/${matchState.room}/bracket`).set({ round: 1, pairs });
+      }
+    }
+  );
+}
+
+// ── Bracket-Screen ──
+function renderBracketScreen(room){
+  document.getElementById("bracketRoomCode").textContent = matchState.room;
+  document.getElementById("bracketRoundNum").textContent = room.bracket ? room.bracket.round : 1;
+  const pairs = (room.bracket && room.bracket.pairs) || {};
+  const name = matchState.name;
+  const myPairKey = Object.keys(pairs).find(k => pairs[k].winner === null && !(pairs[k].votes||{})[name]);
+
+  const duelEl = document.getElementById("matchDuel");
+  const waitEl = document.getElementById("duelWaiting");
+
+  if(myPairKey === undefined){
+    duelEl.innerHTML = "";
+    waitEl.style.display = "";
+    return;
+  }
+  waitEl.style.display = "none";
+  const pair = pairs[myPairKey];
+  const entryA = getEntry(room.pool[pair.a]);
+  const entryB = pair.b !== null ? getEntry(room.pool[pair.b]) : null;
+
+  duelEl.innerHTML = "";
+  duelEl.appendChild(makeDuelCard(entryA, pair.a, myPairKey));
+  const vs = document.createElement("div");
+  vs.className = "match-duel-vs";
+  vs.textContent = "VS";
+  duelEl.appendChild(vs);
+  if(entryB) duelEl.appendChild(makeDuelCard(entryB, pair.b, myPairKey));
+}
+
+function makeDuelCard(entry, idx, pairKey){
+  const card = document.createElement("div");
+  card.className = "match-duel-card";
+  const imgWrap = document.createElement("div");
+  renderMiniCard(imgWrap, entry);
+  card.appendChild(imgWrap);
+  const info = document.createElement("div");
+  info.className = "match-duel-card-info";
+  info.innerHTML = entry ? `<div class="match-duel-card-title">${entry.title}</div>` : "";
+  card.appendChild(info);
+  card.addEventListener("click", () => castVote(pairKey, idx));
+  return card;
+}
+
+async function castVote(pairKey, idx){
+  await matchDb.ref(`rooms/${matchState.room}/bracket/pairs/${pairKey}/votes/${matchState.name}`).set(idx);
+}
+
+// ── Übergang Duell-Runde → nächste Runde (jeder Client berechnet dasselbe Ergebnis) ──
+async function maybeAdvanceBracketRound(room){
+  const participants = room.participants || {};
+  const names = Object.keys(participants);
+  const pairs = (room.bracket && room.bracket.pairs) || {};
+  const pairKeys = Object.keys(pairs);
+  if(pairKeys.length === 0) return;
+
+  const updates = {};
+  let changed = false;
+  pairKeys.forEach(k => {
+    const pair = pairs[k];
+    if(pair.winner !== null || pair.b === null) return;
+    const votes = pair.votes || {};
+    if(names.every(n => votes[n] !== undefined)){
+      const countA = Object.values(votes).filter(v => v === pair.a).length;
+      const countB = Object.values(votes).filter(v => v === pair.b).length;
+      updates[`bracket/pairs/${k}/winner`] = countA >= countB ? pair.a : pair.b; // Gleichstand: niedrigerer Index gewinnt
+      changed = true;
+    }
+  });
+  if(changed){
+    await matchDb.ref(`rooms/${matchState.room}`).update(updates);
+    return;
+  }
+
+  if(!pairKeys.every(k => pairs[k].winner !== null)) return;
+
+  const winners = pairKeys.map(k => pairs[k].winner).sort((a,b) => parseInt(a)-parseInt(b));
+  if(winners.length === 1){
+    await matchDb.ref(`rooms/${matchState.room}/phase`).transaction(
+      cur => (cur === "bracket" ? "done" : undefined),
+      async (err, committed) => {
+        if(committed) await matchDb.ref(`rooms/${matchState.room}/winner`).set(winners[0]);
+      }
+    );
+    return;
+  }
+
+  const currentRound = room.bracket.round;
+  await matchDb.ref(`rooms/${matchState.room}/bracket/round`).transaction(
+    cur => (cur === currentRound ? cur + 1 : undefined),
+    async (err, committed) => {
+      if(!committed) return;
+      const newPairs = {};
+      for(let i=0;i<winners.length;i+=2){
+        const b = winners[i+1] !== undefined ? winners[i+1] : null;
+        newPairs[i/2] = { a: winners[i], b, votes: {}, winner: b === null ? winners[i] : null };
+      }
+      await matchDb.ref(`rooms/${matchState.room}/bracket/pairs`).set(newPairs);
+    }
+  );
+}
+
+// ── Gewinner-Screen ──
+function renderWinnerScreen(room){
+  const entry = getEntry(room.pool[room.winner]);
+  const el = document.getElementById("matchWinnerCard");
+  el.innerHTML = "";
+  if(entry){
+    if(entry.image){
+      const img = document.createElement("img");
+      img.src = entry.image;
+      el.appendChild(img);
+    }
+    const title = document.createElement("div");
+    title.className = "match-winner-title";
+    title.textContent = entry.title;
+    el.appendChild(title);
+    const meta = document.createElement("div");
+    meta.className = "match-winner-meta";
+    meta.textContent = [entry.type, entry.year, entry.rating ? `★ ${entry.rating}/10` : ""].filter(Boolean).join(" · ");
+    el.appendChild(meta);
+  }
+}
+
+document.getElementById("matchAgainBtn").addEventListener("click", () => {
+  if(matchRoomRef) matchRoomRef.off();
+  matchState = { room: null, name: null, pool: [], pathToEntry: {} };
+  document.getElementById("createName").value = "";
+  document.getElementById("joinName").value = "";
+  document.getElementById("joinCode").value = "";
+  showMatchScreen("match-lobby");
+});
+
+initFirebase();
+
+// Hier den generierten SHA-256 Hashwert eintragen
 const CORRECT_PASSWORD_HASH = "21000307278cbd30c1b3aeda11601b294b0f58501a96b7024e16bcec854c2f3d";
 
 async function checkPassword() {
   const input = document.getElementById("pwd-input").value;
   const errorMsg = document.getElementById("pwd-error");
   
+  // Passwort in SHA-256 hashen
   const msgUint8 = new TextEncoder().encode(input);
   const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
   const inputHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
   
   if (inputHash === CORRECT_PASSWORD_HASH) {
+    // Passwort korrekt: Daten laden, Overlay entfernen, Zustand im Session-Speicher merken
     sessionStorage.setItem("watchlist_authenticated", "true");
-    const overlay = document.getElementById("password-overlay");
-    if(overlay) overlay.remove();
+    document.getElementById("password-overlay").remove();
     loadData();
   } else {
+    // Falsches Passwort
     errorMsg.style.display = "block";
     document.getElementById("pwd-input").value = "";
     document.getElementById("pwd-input").focus();
   }
 }
 
+// Event-Listener für Button und Enter-Taste
 document.getElementById("pwd-btn").addEventListener("click", checkPassword);
 document.getElementById("pwd-input").addEventListener("keypress", (e) => {
   if (e.key === "Enter") checkPassword();
 });
 
-// Event-Listener für Buttons registrieren
-document.getElementById("create-room-btn").onclick = createMatchRoom;
-document.getElementById("join-room-btn").onclick = joinMatchRoom;
-document.getElementById("match-like-btn").onclick = () => handleMatchSwipe(true);
-document.getElementById("match-dislike-btn").onclick = () => handleMatchSwipe(false);
+// Prüfen, ob der User in dieser Session bereits eingeloggt war
+if (sessionStorage.getItem("watchlist_authenticated") === "true") {
+  document.getElementById("password-overlay").remove();
+  loadData();
+}
 </script>
-
 </body>
 </html>
