@@ -279,6 +279,53 @@ select.select{width:auto;padding-right:28px;cursor:pointer;}
   .masthead h1{font-size:32px;}
   .rank-sub{white-space:normal;}
 }
+
+/* ── Detail-Modal ─────────────────────────────────────────── */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(8,9,12,.72);
+  z-index:999;align-items:flex-start;justify-content:center;padding:32px 16px;overflow-y:auto;}
+.modal-overlay.visible{display:flex;}
+.modal-box{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius-lg);
+  max-width:640px;width:100%;position:relative;overflow:hidden;margin-bottom:32px;}
+.modal-close{position:absolute;top:14px;right:16px;cursor:pointer;font-size:16px;color:var(--text-muted);
+  width:30px;height:30px;border-radius:50%;background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;z-index:2;}
+.modal-close:hover{color:var(--text);}
+
+.detail-hero{display:flex;gap:0;}
+.detail-hero img{width:180px;flex-shrink:0;aspect-ratio:2/3;object-fit:cover;}
+.detail-hero .match-card-ph{width:180px;flex-shrink:0;aspect-ratio:2/3;display:flex;align-items:center;justify-content:center;
+  background:var(--panel-2);font-size:40px;}
+.detail-body{padding:18px 20px;flex:1;min-width:0;}
+.detail-title{font-size:21px;font-weight:800;line-height:1.2;margin-bottom:4px;padding-right:24px;}
+.detail-meta{font-size:12px;color:var(--text-faint);margin-bottom:12px;}
+.detail-ratings{display:flex;gap:10px;margin-bottom:14px;}
+.rating-chip{background:var(--panel-2);border-radius:9px;padding:8px 14px;text-align:center;min-width:70px;}
+.rating-chip .num{font-family:var(--font-mono);font-size:17px;font-weight:700;color:var(--gold);}
+.rating-chip .lbl{font-size:9.5px;color:var(--text-faint);text-transform:uppercase;letter-spacing:.04em;margin-top:1px;}
+.detail-chips{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:14px;}
+.detail-chip{font-size:10.5px;padding:3px 9px;border-radius:99px;background:var(--panel-2);color:var(--text-muted);}
+
+.detail-section{padding:0 20px 18px;}
+.detail-section-label{font-family:var(--font-mono);font-size:10.5px;font-weight:600;color:var(--text-faint);
+  letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px;}
+.detail-plot{font-size:13.5px;line-height:1.6;color:var(--text);}
+.detail-crew{font-size:12.5px;line-height:1.9;color:var(--text-muted);}
+.detail-crew b{color:var(--text);font-weight:600;}
+.detail-coll-chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:7px 13px;border-radius:99px;
+  background:var(--panel-2);border:1.5px solid var(--gold);color:var(--gold);cursor:pointer;font-weight:600;}
+.detail-obs-link{display:inline-block;margin-top:4px;font-size:11.5px;color:var(--teal);cursor:pointer;text-decoration:underline;}
+
+.detail-coll-list{display:flex;flex-direction:column;gap:2px;}
+.detail-coll-row{display:flex;align-items:center;gap:11px;padding:8px 0;border-bottom:1px solid var(--border);cursor:pointer;}
+.detail-coll-row:last-child{border-bottom:none;}
+.detail-coll-row:hover .detail-coll-row-title{color:var(--gold);}
+.detail-coll-row img, .detail-coll-row .match-card-ph{width:32px;height:48px;object-fit:cover;border-radius:4px;flex-shrink:0;font-size:16px;}
+.detail-coll-row-title{font-size:12.5px;font-weight:600;flex:1;min-width:0;}
+.detail-coll-row-rating{font-family:var(--font-mono);font-size:11.5px;color:var(--gold);flex-shrink:0;}
+
+@media(max-width:520px){
+  .detail-hero{flex-direction:column;}
+  .detail-hero img, .detail-hero .match-card-ph{width:100%;aspect-ratio:3/2;}
+}
 </style>
 </head>
 <body>
@@ -443,6 +490,14 @@ select.select{width:auto;padding-right:28px;cursor:pointer;}
   <div class="footnote">Read-only Ansicht deines Obsidian-Vaults · Highlights werden nur lokal in diesem Browser gespeichert, nicht in deinen Notizen</div>
 </div>
 
+<!-- ═══════════════ DETAIL-MODAL (Film/Serie/Collection) ═══════════════ -->
+<div class="modal-overlay" id="detailModal">
+  <div class="modal-box" id="detailModalBox">
+    <div class="modal-close" id="detailModalClose">✕</div>
+    <div id="detailModalContent"></div>
+  </div>
+</div>
+
 <script>
 const PALETTE = ["#e8b34c","#4fa8a0","#d98f3f","#3fa679","#8b7fd9","#e2574c","#6bc7c0","#c98fd9","#7fb8e8","#e8d24c"];
 
@@ -474,132 +529,6 @@ function groupBy(arr, keyFn){
   return map;
 }
 
-function openDetailsModal(entry, isCollection = false) {
-  const modal = document.getElementById("detailsModal");
-  const hero = document.getElementById("modalHero");
-  const body = document.getElementById("modalBody");
-  
-  if (!modal || !hero || !body) return;
-  
-  hero.innerHTML = "";
-  body.innerHTML = "";
-
-  if (isCollection) {
-    if (entry.images && entry.images[0]) {
-      hero.innerHTML += `<img src="${entry.images[0]}" alt="">`;
-    }
-    
-    const infoDiv = document.createElement("div");
-    infoDiv.className = "modal-hero-info";
-    infoDiv.innerHTML = `
-      <div class="modal-title">${entry.title}</div>
-      <div class="modal-meta">🗂️ Collection · ${entry.itemCount} Titel</div>
-      <div class="modal-ratings">
-        ${entry.rating != null ? `<div class="modal-rating-badge personal">Median: ★ ${entry.rating.toFixed(1)}/10</div>` : ''}
-      </div>
-    `;
-    
-    const obsBtn = document.createElement("button");
-    obsBtn.className = "btn";
-    obsBtn.textContent = "📝 In Obsidian öffnen";
-    obsBtn.addEventListener("click", () => {
-      const link = obsidianLink(entry.path);
-      if(link) window.location.href = link;
-    });
-    
-    infoDiv.appendChild(obsBtn);
-    hero.appendChild(infoDiv);
-
-    let listHtml = `<div class="modal-label" style="margin-bottom:8px">Enthaltene Titel:</div><div class="modal-collection-list">`;
-    const items = watchlistAll.filter(m => m.collections && m.collections.includes(entry.title));
-    
-    if (items.length > 0) {
-      items.forEach(item => {
-        listHtml += `
-          <div class="modal-collection-item">
-            ${item.image ? `<img src="${item.image}">` : '🎬'}
-            <div style="flex:1">
-              <div style="font-size:13.5px; font-weight:600">${item.title}</div>
-              <div style="font-size:11px; color:var(--text-faint)">${item.year} ${item.rating ? `· ★ ${item.rating}/10` : ''}</div>
-            </div>
-          </div>
-        `;
-      });
-    } else {
-      listHtml += `<div style="font-size:13px; color:var(--text-faint)">Keine verknüpften Titel in der Watchlist gefunden.</div>`;
-    }
-    listHtml += `</div>`;
-    body.innerHTML = listHtml;
-
-  } else {
-    // HINWEIS: Hier stand vorher fälschlicherweise eventuell noch einmal "const modal = ..."
-    if (entry.image) {
-      hero.innerHTML += `<img src="${entry.image}" alt="">`;
-    } else {
-      hero.innerHTML += `<div style="width:140px; height:210px; background:var(--panel-2); display:flex; align-items:center; justify-content:center; font-size:40px; border-radius:var(--radius)">${entry.type.split(" ")[0]}</div>`;
-    }
-
-    const onlineRating = entry.onlineRating || entry.online_rating;
-    const personalRating = entry.rating || entry.personalRating || entry.personal_rating;
-    
-    hero.innerHTML += `
-      <div class="modal-hero-info">
-        <div class="modal-title">${entry.title}</div>
-        <div class="modal-meta">${entry.type} · ${entry.year || 'Unbekanntes Jahr'}</div>
-        <div class="modal-ratings">
-          ${personalRating ? `<div class="modal-rating-badge personal">Deine Wertung: ★ ${personalRating}/10</div>` : ''}
-          ${onlineRating ? `<div class="modal-rating-badge">Online Schnitt: ★ ${onlineRating}/10</div>` : ''}
-        </div>
-        <button class="btn" onclick="const link = obsidianLink('${entry.path.replace(/'/g, "\\'")}'); if(link) window.location.href=link;">📝 In Obsidian öffnen</button>
-      </div>
-    `;
-
-    const plotText = entry.plot || entry.description || "Keine Beschreibung vorhanden.";
-    const services = entry.streaming && entry.streaming.length ? entry.streaming.join(", ") : "Keine Dienste zugewiesen";
-    const directors = entry.directors && entry.directors.length ? entry.directors.join(", ") : (entry.director || "-");
-    const writers = entry.writers && entry.writers.length ? entry.writers.join(", ") : (entry.writer || "-");
-    const actorsList = entry.actors && entry.actors.length ? entry.actors.join(", ") : "-";
-
-    body.innerHTML = `
-      <div class="modal-plot">${plotText}</div>
-      <div class="modal-grid-fields">
-        <div class="modal-label">Streaming</div>
-        <div class="modal-val">${services}</div>
-        <div class="modal-label">Regie</div>
-        <div class="modal-val">${directors}</div>
-        <div class="modal-label">Drehbuch</div>
-        <div class="modal-val">${writers}</div>
-        <div class="modal-label">Cast</div>
-        <div class="modal-val">${actorsList}</div>
-      </div>
-    `;
-  }
-
-  modal.classList.add("open");
-}
-
-// Funktion zum Schließen des Modals
-function closeDetailsModal() {
-  if (modal) modal.classList.remove("open");
-}
-
-// Event-Listener dynamisch zuweisen, sobald geöffnet wird (verhindert den Absturz beim Laden)
-function setupModalCloseEvents() {
-  const closeBtn = document.getElementById("closeDetailsBtn");
-  const modalOverlay = document.getElementById("detailsModal");
-  
-  if (closeBtn && !closeBtn.dataset.hasListener) {
-    closeBtn.addEventListener("click", closeDetailsModal);
-    closeBtn.dataset.hasListener = "true";
-  }
-  if (modalOverlay && !modalOverlay.dataset.hasListener) {
-    modalOverlay.addEventListener("click", (e) => {
-      if (e.target === modalOverlay) closeDetailsModal();
-    });
-    modalOverlay.dataset.hasListener = "true";
-  }
-}
-  
 async function loadData(){
   try{
     const res = await fetch("data.json?_=" + Date.now());
@@ -727,14 +656,119 @@ function obsidianLink(path){
   return `obsidian://open?vault=${encodeURIComponent(DATA.vaultName)}&file=${encodeURIComponent(noExt)}`;
 }
 
+// ═══════════════ DETAIL-MODAL ═══════════════
+function closeDetailModal(){
+  document.getElementById("detailModal").classList.remove("visible");
+}
+document.getElementById("detailModalClose").addEventListener("click", closeDetailModal);
+document.getElementById("detailModal").addEventListener("click", (ev) => {
+  if(ev.target.id === "detailModal") closeDetailModal();
+});
+document.addEventListener("keydown", (ev) => { if(ev.key === "Escape") closeDetailModal(); });
+
+function openDetailModal(html){
+  document.getElementById("detailModalContent").innerHTML = html;
+  document.getElementById("detailModal").classList.add("visible");
+  document.getElementById("detailModalBox").scrollTop = 0;
+}
+
+function ratingChipsHtml(e){
+  const chips = [];
+  if(e.hasRating) chips.push(`<div class="rating-chip"><div class="num">${e.rating}</div><div class="lbl">Meine Wertung</div></div>`);
+  if(e.onlineRating != null) chips.push(`<div class="rating-chip"><div class="num">${e.onlineRating}</div><div class="lbl">Online</div></div>`);
+  return chips.join("");
+}
+
+function openMovieDetail(e){
+  const collLinks = (e.collections||[]).map(c =>
+    `<div class="detail-coll-chip" data-coll-path="${encodeURIComponent(c.path)}">🗂️ ${c.title}</div>`
+  ).join(" ");
+
+  const crewLines = [];
+  if(e.directors && e.directors.length) crewLines.push(`<b>Regie:</b> ${e.directors.join(", ")}`);
+  if(e.writers && e.writers.length) crewLines.push(`<b>Drehbuch:</b> ${e.writers.join(", ")}`);
+  if(e.composer) crewLines.push(`<b>Filmmusik:</b> ${e.composer}`);
+  if(e.actors && e.actors.length) crewLines.push(`<b>Besetzung:</b> ${e.actors.join(", ")}`);
+
+  const obsLink = obsidianLink(e.path);
+
+  openDetailModal(`
+    <div class="detail-hero">
+      ${e.image ? `<img src="${e.image}" alt="">` : `<div class="match-card-ph">${e.type.split(" ")[0]}</div>`}
+      <div class="detail-body">
+        <div class="detail-title">${e.title}</div>
+        <div class="detail-meta">${[e.type, e.year, e.duration].filter(Boolean).join(" · ")}</div>
+        <div class="detail-ratings">${ratingChipsHtml(e)}</div>
+        <div class="detail-chips">
+          ${e.genres.map(g=>`<div class="detail-chip">${g}</div>`).join("")}
+          ${e.streaming.map(s=>`<div class="detail-chip">📺 ${s}</div>`).join("")}
+        </div>
+        ${obsLink ? `<div class="detail-obs-link" id="detailObsLink">In Obsidian öffnen ↗</div>` : ""}
+      </div>
+    </div>
+    ${e.plot ? `<div class="detail-section"><div class="detail-section-label">Handlung</div><div class="detail-plot">${e.plot}</div></div>` : ""}
+    ${crewLines.length ? `<div class="detail-section"><div class="detail-section-label">Besetzung &amp; Crew</div><div class="detail-crew">${crewLines.join("<br>")}</div></div>` : ""}
+    ${collLinks ? `<div class="detail-section"><div class="detail-section-label">Teil der Collection</div>${collLinks}</div>` : ""}
+  `);
+
+  if(obsLink){
+    document.getElementById("detailObsLink").addEventListener("click", () => window.location.href = obsLink);
+  }
+  document.querySelectorAll(".detail-coll-chip").forEach(chip => {
+    chip.addEventListener("click", () => {
+      const path = decodeURIComponent(chip.dataset.collPath);
+      const coll = DATA.collections.find(c => c.path === path);
+      if(coll) openCollectionDetail(coll);
+    });
+  });
+}
+
+function openCollectionDetail(c){
+  const obsLink = obsidianLink(c.path);
+  const rows = (c.items||[]).slice().sort((a,b)=>a.title.localeCompare(b.title,"de")).map(it => `
+    <div class="detail-coll-row" data-item-path="${encodeURIComponent(it.path)}">
+      ${it.image ? `<img src="${it.image}" loading="lazy">` : `<div class="match-card-ph">${it.type.split(" ")[0]}</div>`}
+      <div class="detail-coll-row-title">${it.title}</div>
+      <div class="detail-coll-row-rating">${it.rating != null ? "★ "+it.rating : ""}</div>
+    </div>
+  `).join("");
+
+  openDetailModal(`
+    <div class="detail-hero">
+      <div class="coll-collage n${Math.min(c.images.length,4)}" style="width:180px;flex-shrink:0;aspect-ratio:2/3;">
+        ${c.images.slice(0,4).map(src=>`<img src="${src}" loading="lazy">`).join("")}
+      </div>
+      <div class="detail-body">
+        <div class="detail-title">${c.title}</div>
+        <div class="detail-meta">${c.itemCount} Titel${c.rating != null ? " · Median ★ " + c.rating.toFixed(1) + "/10" : ""}</div>
+        ${obsLink ? `<div class="detail-obs-link" id="detailObsLink">In Obsidian öffnen ↗</div>` : ""}
+      </div>
+    </div>
+    <div class="detail-section">
+      <div class="detail-section-label">Titel in dieser Collection</div>
+      <div class="detail-coll-list">${rows}</div>
+    </div>
+  `);
+
+  if(obsLink){
+    document.getElementById("detailObsLink").addEventListener("click", () => window.location.href = obsLink);
+  }
+  document.querySelectorAll(".detail-coll-row").forEach(row => {
+    row.addEventListener("click", () => {
+      const path = decodeURIComponent(row.dataset.itemPath);
+      const entry = watchlistAll.find(x => x.path === path);
+      if(entry) openMovieDetail(entry);
+    });
+  });
+}
+
 function renderCard(e){
   const card = document.createElement("div");
   card.className = "card";
-  card.title = "In Obsidian öffnen";
+  card.title = "Details anzeigen";
   card.addEventListener("click", (ev) => {
     if(ev.target.closest(".bm-btn")) return;
-    // NEU: Modal öffnen statt direkt an Obsidian weiterzuleiten
-    openDetailsModal(e, false);
+    openMovieDetail(e);
   });
 
   if(e.image) card.innerHTML += `<img class="card-img" src="${e.image}" alt="" loading="lazy">`;
@@ -773,11 +807,8 @@ function renderCard(e){
 function renderCollectionCard(c){
   const card = document.createElement("div");
   card.className = "card";
-  card.title = "In Obsidian öffnen";
-  card.addEventListener("click", () => {
-    // NEU: Modal öffnen für Collections
-    openDetailsModal(c, true);
-  });
+  card.title = "Details anzeigen";
+  card.addEventListener("click", () => openCollectionDetail(c));
   const collage = document.createElement("div");
   collage.className = "coll-collage n" + Math.min(c.images.length, 4);
   c.images.slice(0,4).forEach(src => { const img = document.createElement("img"); img.src = src; img.loading="lazy"; collage.appendChild(img); });
@@ -838,9 +869,7 @@ function showSpotlight(e){
     </div>
   `;
   document.getElementById("spotClose").addEventListener("click", () => el.classList.remove("visible"));
-  document.getElementById("spotTitle").addEventListener("click", () => {
-    openDetailsModal(e, false);
-  });
+  document.getElementById("spotTitle").addEventListener("click", () => openMovieDetail(e));
   document.getElementById("rerollBtn").addEventListener("click", () => {
     const pool = sortEntries(getFiltered());
     if(pool.length) showSpotlight(pool[Math.floor(Math.random()*pool.length)]);
@@ -1114,15 +1143,15 @@ function addPeopleSection(container, title, ranks, topN){
 
 // Trag hier deine Firebase-Projekt-Konfiguration ein (siehe README, Abschnitt "Match-Funktion einrichten"):
 const FIREBASE_CONFIG = {
-  apiKey: "AIzaSyDAMrqsvNZ0huMIhW_nolsKaZTOikB8CXc",
-  authDomain: "whattowatch-f5d33.firebaseapp.com",
-  databaseURL: "https://whattowatch-f5d33-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "whattowatch-f5d33",
+  apiKey: "",
+  authDomain: "",
+  databaseURL: "",
+  projectId: "",
 };
 
 let matchDb = null;
 let matchRoomRef = null;
-let matchState = { room: null, name: null, pool: [], pathToEntry: {} };
+let matchState = { room: null, name: null, pool: [], pathToEntry: {}, shuffledOrder: [] };
 
 function initFirebase(){
   if(!FIREBASE_CONFIG.databaseURL){
@@ -1173,12 +1202,6 @@ function buildMatchPool(filters){
     if(filters.service !== "all" && !e.streaming.includes(filters.service)) return false;
     return true;
   }).map(e => e.path);
-  // Einfacher Fisher-Yates-Shuffle für eine echte Zufallsreihenfolge
-  for (let i = filteredPaths.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [filteredPaths[i], filteredPaths[j]] = [filteredPaths[j], filteredPaths[i]];
-  }
-  return filteredPaths;
 }
 
 document.getElementById("createRoomBtn").addEventListener("click", async () => {
@@ -1240,6 +1263,7 @@ async function joinExistingRoom(code, name){
   matchState.pool = Object.entries(room.pool || {});
   matchState.pathToEntry = {};
   watchlistAll.forEach(e => matchState.pathToEntry[e.path] = e);
+  matchState.shuffledOrder = shuffleArray(Object.keys(room.pool || {}));
 
   const existing = room.participants && room.participants[key];
   if(!existing){
@@ -1248,6 +1272,15 @@ async function joinExistingRoom(code, name){
     });
   }
   attachRoomListener(code);
+}
+
+function shuffleArray(arr){
+  const a = [...arr];
+  for(let i = a.length - 1; i > 0; i--){
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
 }
 
 function attachRoomListener(code){
@@ -1308,12 +1341,21 @@ function renderSwipeScreen(room, me){
   document.getElementById("swipeProgressLabel").textContent = `❤️ ${likeCount} / ${goal}`;
   renderParticipants("swipeParticipants", room.participants, goal);
 
-  const swiped = me.swiped || {};
-  const poolKeys = Object.keys(room.pool);
-  const nextIdx = poolKeys.find(idx => swiped[idx] === undefined);
   const stack = document.getElementById("matchCardStack");
+
+  if(likeCount >= goal){
+    stack.innerHTML = `<div class="match-empty-deck">🎉 Ziel erreicht! Du hast ${likeCount} von ${goal} Likes.</div>`;
+    markReady();
+    return;
+  }
+
+  const swiped = me.swiped || {};
+  const order = matchState.shuffledOrder && matchState.shuffledOrder.length
+    ? matchState.shuffledOrder
+    : Object.keys(room.pool);
+  const nextIdx = order.find(idx => swiped[idx] === undefined);
   stack.innerHTML = "";
-  if(likeCount >= goal || nextIdx === undefined){
+  if(nextIdx === undefined){
     stack.innerHTML = `<div class="match-empty-deck">🎬 Keine weiteren Titel mehr im Pool.<br>Du hast ${likeCount} von ${goal} Likes.</div>`;
     markReady();
     return;
@@ -1529,7 +1571,7 @@ function renderWinnerScreen(room){
 
 document.getElementById("matchAgainBtn").addEventListener("click", () => {
   if(matchRoomRef) matchRoomRef.off();
-  matchState = { room: null, name: null, pool: [], pathToEntry: {} };
+  matchState = { room: null, name: null, pool: [], pathToEntry: {}, shuffledOrder: [] };
   document.getElementById("createName").value = "";
   document.getElementById("joinName").value = "";
   document.getElementById("joinCode").value = "";
