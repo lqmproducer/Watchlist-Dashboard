@@ -474,6 +474,116 @@ function groupBy(arr, keyFn){
   return map;
 }
 
+  function openDetailsModal(entry, isCollection = false) {
+  const modal = document.getElementById("detailsModal");
+  const hero = document.getElementById("modalHero");
+  const body = document.getElementById("modalBody");
+  
+  hero.innerHTML = "";
+  body.innerHTML = "";
+
+  if (isCollection) {
+    // ── MODAL FÜR COLLECTIONS ──
+    if (entry.images && entry.images[0]) {
+      hero.innerHTML += `<img src="${entry.images[0]}" alt="">`;
+    }
+    hero.innerHTML += `
+      <div class="modal-hero-info">
+        <div class="modal-title">${entry.title}</div>
+        <div class="modal-meta">🗂️ Collection · ${entry.itemCount} Titel</div>
+        <div class="modal-ratings">
+          ${entry.rating != null ? `<div class="modal-rating-badge personal">Median: ★ ${entry.rating.toFixed(1)}/10</div>` : ''}
+        </div>
+        <button class="btn" onclick="const link = obsidianLink('${entry.path.replace(/'/g, "\\'")}'); if(link) window.location.href=link;">📝 In Obsidian öffnen</button>
+      </div>
+    `;
+
+    // Bei Collections listen wir die enthaltenen Titel auf (falls im Vault vorhanden)
+    let listHtml = `<div class="modal-label" style="margin-bottom:8px">Enthaltene Titel:</div><div class="modal-collection-list">`;
+    // Wir suchen Titel im globalen Pool, die zu dieser Collection gehören (sofern über Pfad/Notiz auffindbar)
+    const items = watchlistAll.filter(m => m.collections && m.collections.includes(entry.title));
+    
+    if (items.length > 0) {
+      items.forEach(item => {
+        listHtml += `
+          <div class="modal-collection-item">
+            ${item.image ? `<img src="${item.image}">` : '🎬'}
+            <div style="flex:1">
+              <div style="font-size:13.5px; font-weight:600">${item.title}</div>
+              <div style="font-size:11px; color:var(--text-faint)">${item.year} ${item.rating ? `· ★ ${item.rating}/10` : ''}</div>
+            </div>
+          </div>
+        `;
+      });
+    } else {
+      listHtml += `<div style="font-size:13px; color:var(--text-faint)">Keine verknüpften Titel in der Watchlist gefunden.</div>`;
+    }
+    listHtml += `</div>`;
+    body.innerHTML = listHtml;
+
+  } else {
+    // ── MODAL FÜR FILME / SERIEN ──
+    if (entry.image) {
+      hero.innerHTML += `<img src="${entry.image}" alt="">`;
+    } else {
+      hero.innerHTML += `<div style="width:140px; height:210px; background:var(--panel-2); display:flex; align-items:center; justify-content:center; font-size:40px; border-radius:var(--radius)">${entry.type.split(" ")[0]}</div>`;
+    }
+
+    // Ratings Zeile vorbereiten
+    // Fallback-Handling falls die Keys in data.json leicht anders heißen (z.B. onlineRating vs. online_rating)
+    const onlineRating = entry.onlineRating || entry.online_rating;
+    const personalRating = entry.rating || entry.personalRating || entry.personal_rating;
+    
+    hero.innerHTML += `
+      <div class="modal-hero-info">
+        <div class="modal-title">${entry.title}</div>
+        <div class="modal-meta">${entry.type} · ${entry.year || 'Unbekanntes Jahr'}</div>
+        <div class="modal-ratings">
+          ${personalRating ? `<div class="modal-rating-badge personal">Deine Wertung: ★ ${personalRating}/10</div>` : ''}
+          ${onlineRating ? `<div class="modal-rating-badge">Online Schnitt: ★ ${onlineRating}/10</div>` : ''}
+        </div>
+        <button class="btn" onclick="const link = obsidianLink('${entry.path.replace(/'/g, "\\'")}'); if(link) window.location.href=link;">📝 In Obsidian öffnen</button>
+      </div>
+    `;
+
+    // Body mit Plot und Grid-Metadaten befüllen
+    const plotText = entry.plot || entry.description || "Keine Beschreibung vorhanden.";
+    const services = entry.streaming && entry.streaming.length ? entry.streaming.join(", ") : "Keine Dienste zugewiesen";
+    const directors = entry.directors && entry.directors.length ? entry.directors.join(", ") : (entry.director || "-");
+    const writers = entry.writers && entry.writers.length ? entry.writers.join(", ") : (entry.writer || "-");
+    const actorsList = entry.actors && entry.actors.length ? entry.actors.join(", ") : "-";
+
+    body.innerHTML = `
+      <div class="modal-plot">${plotText}</div>
+      <div class="modal-grid-fields">
+        <div class="modal-label">Streaming</div>
+        <div class="modal-val">${services}</div>
+        
+        <div class="modal-label">Regie</div>
+        <div class="modal-val">${directors}</div>
+        
+        <div class="modal-label">Drehbuch</div>
+        <div class="modal-val">${writers}</div>
+        
+        <div class="modal-label">Cast</div>
+        <div class="modal-val">${actorsList}</div>
+      </div>
+    `;
+  }
+
+  modal.classList.add("open");
+}
+
+// Modal Schließen-Events
+document.getElementById("closeDetailsBtn").addEventListener("click", () => {
+  document.getElementById("detailsModal").classList.remove("open");
+});
+document.getElementById("detailsModal").addEventListener("click", (e) => {
+  if (e.target === document.getElementById("detailsModal")) {
+    document.getElementById("detailsModal").classList.remove("open");
+  }
+});
+  
 async function loadData(){
   try{
     const res = await fetch("data.json?_=" + Date.now());
@@ -607,8 +717,8 @@ function renderCard(e){
   card.title = "In Obsidian öffnen";
   card.addEventListener("click", (ev) => {
     if(ev.target.closest(".bm-btn")) return;
-    const link = obsidianLink(e.path);
-    if(link) window.location.href = link;
+    // NEU: Modal öffnen statt direkt an Obsidian weiterzuleiten
+    openDetailsModal(e, false);
   });
 
   if(e.image) card.innerHTML += `<img class="card-img" src="${e.image}" alt="" loading="lazy">`;
@@ -649,8 +759,8 @@ function renderCollectionCard(c){
   card.className = "card";
   card.title = "In Obsidian öffnen";
   card.addEventListener("click", () => {
-    const link = obsidianLink(c.path);
-    if(link) window.location.href = link;
+    // NEU: Modal öffnen für Collections
+    openDetailsModal(c, true);
   });
   const collage = document.createElement("div");
   collage.className = "coll-collage n" + Math.min(c.images.length, 4);
@@ -713,8 +823,7 @@ function showSpotlight(e){
   `;
   document.getElementById("spotClose").addEventListener("click", () => el.classList.remove("visible"));
   document.getElementById("spotTitle").addEventListener("click", () => {
-    const link = obsidianLink(e.path);
-    if(link) window.location.href = link;
+    openDetailsModal(e, false);
   });
   document.getElementById("rerollBtn").addEventListener("click", () => {
     const pool = sortEntries(getFiltered());
