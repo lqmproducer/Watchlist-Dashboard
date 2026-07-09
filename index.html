@@ -574,15 +574,28 @@ function openDetailsModal(entry, isCollection = false) {
   modal.classList.add("open");
 }
 
-// Modal Schließen-Events
-document.getElementById("closeDetailsBtn").addEventListener("click", () => {
-  document.getElementById("detailsModal").classList.remove("open");
-});
-document.getElementById("detailsModal").addEventListener("click", (e) => {
-  if (e.target === document.getElementById("detailsModal")) {
-    document.getElementById("detailsModal").classList.remove("open");
+// Funktion zum Schließen des Modals
+function closeDetailsModal() {
+  const modal = document.getElementById("detailsModal");
+  if (modal) modal.classList.remove("open");
+}
+
+// Event-Listener dynamisch zuweisen, sobald geöffnet wird (verhindert den Absturz beim Laden)
+function setupModalCloseEvents() {
+  const closeBtn = document.getElementById("closeDetailsBtn");
+  const modalOverlay = document.getElementById("detailsModal");
+  
+  if (closeBtn && !closeBtn.dataset.hasListener) {
+    closeBtn.addEventListener("click", closeDetailsModal);
+    closeBtn.dataset.hasListener = "true";
   }
-});
+  if (modalOverlay && !modalOverlay.dataset.hasListener) {
+    modalOverlay.addEventListener("click", (e) => {
+      if (e.target === modalOverlay) closeDetailsModal();
+    });
+    modalOverlay.dataset.hasListener = "true";
+  }
+}
   
 async function loadData(){
   try{
