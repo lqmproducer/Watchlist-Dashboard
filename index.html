@@ -1146,10 +1146,10 @@ function addPeopleSection(container, title, ranks, topN){
 
 // Trag hier deine Firebase-Projekt-Konfiguration ein (siehe README, Abschnitt "Match-Funktion einrichten"):
 const FIREBASE_CONFIG = {
-  apiKey: "AIzaSyDAMrqsvNZ0huMIhW_nolsKaZTOikB8CXc",
-  authDomain: "whattowatch-f5d33.firebaseapp.com",
-  databaseURL: "https://whattowatch-f5d33-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "whattowatch-f5d33",
+  apiKey: "",
+  authDomain: "",
+  databaseURL: "",
+  projectId: "",
 };
 
 let matchDb = null;
@@ -1385,8 +1385,8 @@ function renderSwipeScreen(room, me){
   stack.appendChild(card);
 }
 
-// ── Cross-Pollination: bereits fertige Teilnehmer geben ihre Likes teilweise
-//    in die Rotation der noch swipenden Personen, um Überschneidungen wahrscheinlicher zu machen ──
+// ── Cross-Pollination: Likes anderer fließen SOFORT (auch mitten im Swipen, nicht erst
+//    wenn die Person fertig ist) teilweise in die eigene Rotation ein ──
 function pickNextIdx(room, me, swiped){
   const goal = room.likeGoal;
   const boostCap = Math.max(3, Math.ceil(goal / 2));
@@ -1398,7 +1398,7 @@ function pickNextIdx(room, me, swiped){
     names.forEach(n => {
       if(n === matchState.name) return;
       const p = room.participants[n];
-      if(!p || !p.ready) return;
+      if(!p) return;
       Object.entries(p.swiped || {}).forEach(([idx, val]) => {
         if(val === "like" && swiped[idx] === undefined && !boosted.includes(idx)) boosted.push(idx);
       });
@@ -1468,22 +1468,24 @@ async function maybeAdvanceToBracket(room){
   }
   matches.sort((a,b) => parseInt(a)-parseInt(b));
 
-  await matchDb.ref(`rooms/${matchState.room}/phase`).transaction(
-    cur => (cur === "swiping" ? "bracket" : undefined),
-    async (err, committed) => {
-      if(!committed) return;
-      if(matches.length === 1){
-        await matchDb.ref(`rooms/${matchState.room}`).update({phase:"done", winner: matches[0]});
-      } else {
-        const pairs = {};
-        for(let i=0;i<matches.length;i+=2){
-          const b = matches[i+1] !== undefined ? matches[i+1] : null;
-          pairs[i/2] = { a: matches[i], b, votes: {}, winner: b === null ? matches[i] : null };
-        }
-        await matchDb.ref(`rooms/${matchState.room}/bracket`).set({ round: 1, pairs });
+  // Atomarer Übergang: phase + bracket (bzw. winner) in EINER Transaction auf die ganze
+  // Raum-Wurzel, damit kein Client je einen Zwischenzustand (phase="bracket" ohne bracket-Daten) sieht.
+  await matchDb.ref(`rooms/${matchState.room}`).transaction(cur => {
+    if(!cur || cur.phase !== "swiping") return; // schon von jemand anders umgeschaltet -> abbrechen
+    if(matches.length === 1){
+      cur.phase = "done";
+      cur.winner = matches[0];
+    } else {
+      const pairs = {};
+      for(let i=0;i<matches.length;i+=2){
+        const b = matches[i+1] !== undefined ? matches[i+1] : null;
+        pairs[i/2] = { a: matches[i], b, votes: {}, winner: b === null ? matches[i] : null };
       }
+      cur.phase = "bracket";
+      cur.bracket = { round: 1, pairs };
     }
-  );
+    return cur;
+  });
 }
 
 // ── Bracket-Screen ──
@@ -1564,28 +1566,27 @@ async function maybeAdvanceBracketRound(room){
 
   const winners = pairKeys.map(k => pairs[k].winner).sort((a,b) => parseInt(a)-parseInt(b));
   if(winners.length === 1){
-    await matchDb.ref(`rooms/${matchState.room}/phase`).transaction(
-      cur => (cur === "bracket" ? "done" : undefined),
-      async (err, committed) => {
-        if(committed) await matchDb.ref(`rooms/${matchState.room}/winner`).set(winners[0]);
-      }
-    );
+    await matchDb.ref(`rooms/${matchState.room}`).update({ phase: "done", winner: winners[0] });
     return;
   }
 
-  const currentRound = room.bracket.round;
-  await matchDb.ref(`rooms/${matchState.room}/bracket/round`).transaction(
-    cur => (cur === currentRound ? cur + 1 : undefined),
-    async (err, committed) => {
-      if(!committed) return;
-      const newPairs = {};
-      for(let i=0;i<winners.length;i+=2){
-        const b = winners[i+1] !== undefined ? winners[i+1] : null;
-        newPairs[i/2] = { a: winners[i], b, votes: {}, winner: b === null ? winners[i] : null };
-      }
-      await matchDb.ref(`rooms/${matchState.room}/bracket/pairs`).set(newPairs);
+  // Atomarer Rundenwechsel: Rundennummer UND neue Paare in EINER Transaction,
+  // damit nie ein inkonsistenter Zwischenzustand (neue Runde, alte Paare) sichtbar wird
+  // — das war die Ursache für explodierende Rundenzahlen bei mehreren gleichzeitigen Clients.
+  const expectedRound = room.bracket.round;
+  await matchDb.ref(`rooms/${matchState.room}/bracket`).transaction(cur => {
+    if(!cur || cur.round !== expectedRound || !cur.pairs) return; // schon von jemand anders weitergeschaltet -> abbrechen
+    const keys = Object.keys(cur.pairs);
+    if(!keys.every(k => cur.pairs[k] && cur.pairs[k].winner !== null && cur.pairs[k].winner !== undefined)) return;
+    const freshWinners = keys.map(k => cur.pairs[k].winner).sort((a,b) => parseInt(a)-parseInt(b));
+    if(freshWinners.length === 1) return; // wird oben separat behandelt
+    const newPairs = {};
+    for(let i=0;i<freshWinners.length;i+=2){
+      const b = freshWinners[i+1] !== undefined ? freshWinners[i+1] : null;
+      newPairs[i/2] = { a: freshWinners[i], b, votes: {}, winner: b === null ? freshWinners[i] : null };
     }
-  );
+    return { round: cur.round + 1, pairs: newPairs };
+  });
 }
 
 // ── Gewinner-Screen ──
