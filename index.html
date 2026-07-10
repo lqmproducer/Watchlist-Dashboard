@@ -243,6 +243,9 @@ select.select{width:auto;padding-right:28px;cursor:pointer;}
 .match-card-title{font-size:15px;font-weight:800;margin-bottom:3px;}
 .match-card-meta{font-size:11.5px;color:var(--text-faint);}
 .match-empty-deck{text-align:center;padding:40px 14px;color:var(--text-faint);}
+.match-boost-badge{position:absolute;top:8px;left:8px;right:8px;z-index:2;font-size:10.5px;font-weight:700;
+  padding:5px 10px;border-radius:99px;background:var(--gold);color:#1a1408;text-align:center;
+  font-family:var(--font-mono);letter-spacing:.02em;}
 
 .match-swipe-actions{display:flex;justify-content:center;gap:22px;margin-top:20px;}
 .match-action-btn{width:60px;height:60px;border-radius:50%;border:1.5px solid var(--border);background:var(--panel);
@@ -1143,15 +1146,15 @@ function addPeopleSection(container, title, ranks, topN){
 
 // Trag hier deine Firebase-Projekt-Konfiguration ein (siehe README, Abschnitt "Match-Funktion einrichten"):
 const FIREBASE_CONFIG = {
-  apiKey: "AIzaSyDAMrqsvNZ0huMIhW_nolsKaZTOikB8CXc",
-  authDomain: "whattowatch-f5d33.firebaseapp.com",
-  databaseURL: "https://whattowatch-f5d33-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "whattowatch-f5d33",
+  apiKey: "",
+  authDomain: "",
+  databaseURL: "",
+  projectId: "",
 };
 
 let matchDb = null;
 let matchRoomRef = null;
-let matchState = { room: null, name: null, pool: [], pathToEntry: {}, shuffledOrder: [] };
+let matchState = { room: null, name: null, pool: [], pathToEntry: {}, shuffledOrder: [], boostShown: 0 };
 
 function initFirebase(){
   if(!FIREBASE_CONFIG.databaseURL){
@@ -1264,6 +1267,7 @@ async function joinExistingRoom(code, name){
   matchState.pathToEntry = {};
   watchlistAll.forEach(e => matchState.pathToEntry[e.path] = e);
   matchState.shuffledOrder = shuffleArray(Object.keys(room.pool || {}));
+  matchState.boostShown = 0;
 
   const existing = room.participants && room.participants[key];
   if(!existing){
@@ -1350,10 +1354,7 @@ function renderSwipeScreen(room, me){
   }
 
   const swiped = me.swiped || {};
-  const order = matchState.shuffledOrder && matchState.shuffledOrder.length
-    ? matchState.shuffledOrder
-    : Object.keys(room.pool);
-  const nextIdx = order.find(idx => swiped[idx] === undefined);
+  const { idx: nextIdx, boosted } = pickNextIdx(room, me, swiped);
   stack.innerHTML = "";
   if(nextIdx === undefined){
     stack.innerHTML = `<div class="match-empty-deck">🎬 Keine weiteren Titel mehr im Pool.<br>Du hast ${likeCount} von ${goal} Likes.</div>`;
@@ -1364,6 +1365,13 @@ function renderSwipeScreen(room, me){
   const card = document.createElement("div");
   card.className = "match-card";
   card.dataset.idx = nextIdx;
+  if(boosted){
+    card.dataset.boosted = "1";
+    const badge = document.createElement("div");
+    badge.className = "match-boost-badge";
+    badge.textContent = "💫 Andere mochten das";
+    card.appendChild(badge);
+  }
   const imgWrap = document.createElement("div");
   imgWrap.style.cssText = "flex:1;display:flex;min-height:0;overflow:hidden;";
   renderMiniCard(imgWrap, entry);
@@ -1377,11 +1385,44 @@ function renderSwipeScreen(room, me){
   stack.appendChild(card);
 }
 
+// ── Cross-Pollination: bereits fertige Teilnehmer geben ihre Likes teilweise
+//    in die Rotation der noch swipenden Personen, um Überschneidungen wahrscheinlicher zu machen ──
+function pickNextIdx(room, me, swiped){
+  const goal = room.likeGoal;
+  const boostCap = Math.max(3, Math.ceil(goal / 2));
+  if(matchState.boostShown === undefined) matchState.boostShown = 0;
+
+  if(matchState.boostShown < boostCap){
+    const names = Object.keys(room.participants || {});
+    const boosted = [];
+    names.forEach(n => {
+      if(n === matchState.name) return;
+      const p = room.participants[n];
+      if(!p || !p.ready) return;
+      Object.entries(p.swiped || {}).forEach(([idx, val]) => {
+        if(val === "like" && swiped[idx] === undefined && !boosted.includes(idx)) boosted.push(idx);
+      });
+    });
+    if(boosted.length){
+      boosted.sort((a,b) => parseInt(a) - parseInt(b));
+      return { idx: boosted[0], boosted: true };
+    }
+  }
+
+  const order = matchState.shuffledOrder && matchState.shuffledOrder.length
+    ? matchState.shuffledOrder
+    : Object.keys(room.pool);
+  return { idx: order.find(idx => swiped[idx] === undefined), boosted: false };
+}
+
 async function doSwipe(liked){
   const card = document.querySelector("#matchCardStack .match-card");
   if(!card) return;
   const idx = card.dataset.idx;
   const room = matchState.room, name = matchState.name;
+  if(card.dataset.boosted === "1"){
+    matchState.boostShown = (matchState.boostShown || 0) + 1;
+  }
   await matchDb.ref(`rooms/${room}/participants/${name}/swiped/${idx}`).set(liked ? "like" : "dislike");
   if(liked){
     await matchDb.ref(`rooms/${room}/participants/${name}/likeCount`).transaction(v => (v||0)+1);
@@ -1571,7 +1612,7 @@ function renderWinnerScreen(room){
 
 document.getElementById("matchAgainBtn").addEventListener("click", () => {
   if(matchRoomRef) matchRoomRef.off();
-  matchState = { room: null, name: null, pool: [], pathToEntry: {}, shuffledOrder: [] };
+  matchState = { room: null, name: null, pool: [], pathToEntry: {}, shuffledOrder: [], boostShown: 0 };
   document.getElementById("createName").value = "";
   document.getElementById("joinName").value = "";
   document.getElementById("joinCode").value = "";
