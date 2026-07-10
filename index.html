@@ -472,6 +472,27 @@ select.select{width:auto;padding-right:28px;cursor:pointer;}
       <div class="match-participants" id="waitParticipants"></div>
     </div>
 
+    <!-- Screen: Warteraum (nach Erstellen/Beitreten, vor Rundenstart durch den Host) -->
+    <div class="match-screen" id="match-waitroom" style="display:none">
+      <div class="match-roomcode">Raum-Code: <span id="waitroomCode"></span></div>
+      <div class="empty" id="waitroomHostHint">
+        <div class="icon">👑</div>
+        Du bist Host dieser Runde. Starte, sobald alle da sind — danach kann niemand mehr beitreten.
+      </div>
+      <div class="match-participants" id="waitroomParticipants"></div>
+      <button class="btn accent match-btn-full" id="startRoundBtn" style="max-width:280px;margin:18px auto 0;display:block">🚀 Runde starten</button>
+      <div class="match-duel-waiting" id="waitroomNonHostHint" style="display:none">Warte, bis der Host die Runde startet …</div>
+    </div>
+
+    <!-- Screen: KO-Runde vorbereiten (Host startet das Duell-System) -->
+    <div class="match-screen" id="match-bracketready" style="display:none">
+      <div class="empty">
+        <div class="icon">🥊</div>
+        <span id="bracketReadyText"></span>
+      </div>
+      <button class="btn accent match-btn-full" id="startBracketBtn" style="max-width:280px;margin:0 auto;display:block">🥊 KO-Runde starten</button>
+    </div>
+
     <!-- Screen: Duell / Bracket -->
     <div class="match-screen" id="match-bracket" style="display:none">
       <div class="match-roomcode">Runde <span id="bracketRoundNum"></span> · Raum-Code: <span id="bracketRoomCode"></span></div>
@@ -1146,10 +1167,10 @@ function addPeopleSection(container, title, ranks, topN){
 
 // Trag hier deine Firebase-Projekt-Konfiguration ein (siehe README, Abschnitt "Match-Funktion einrichten"):
 const FIREBASE_CONFIG = {
-  apiKey: "AIzaSyDAMrqsvNZ0huMIhW_nolsKaZTOikB8CXc",
-  authDomain: "whattowatch-f5d33.firebaseapp.com",
-  databaseURL: "https://whattowatch-f5d33-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "whattowatch-f5d33",
+  apiKey: "",
+  authDomain: "",
+  databaseURL: "",
+  projectId: "",
 };
 
 let matchDb = null;
