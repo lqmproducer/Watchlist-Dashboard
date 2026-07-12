@@ -270,7 +270,7 @@ select.select{width:auto;padding-right:28px;cursor:pointer;}
 .match-duel-vs{align-self:center;font-family:var(--font-display);font-size:22px;color:var(--text-faint);flex-shrink:0;}
 .match-duel-waiting{text-align:center;font-size:12px;color:var(--text-faint);margin-top:16px;font-family:var(--font-mono);}
 
-.match-winner-box{text-align:center;max-width:320px;margin:20px auto 0;}
+.match-winner-box{text-align:center;max-width:640px;margin:20px auto 0;}
 .match-winner-eyebrow{font-family:var(--font-mono);font-size:12px;color:var(--gold);letter-spacing:.08em;
   text-transform:uppercase;margin-bottom:16px;}
 .match-winner-box img{width:220px;aspect-ratio:2/3;object-fit:cover;border-radius:var(--radius-lg);
@@ -501,10 +501,10 @@ select.select{width:auto;padding-right:28px;cursor:pointer;}
     </div>
 
     <!-- Screen: Gewinner -->
-    <div class="match-screen" id="match-winner" style="display:none">
+    <div class="match-screen" id="match-winner" style="display:none; max-width:640px;">
       <div class="match-winner-box">
         <div class="match-winner-eyebrow">🏆 Euer gemeinsamer Favorit</div>
-        <div id="matchWinnerCard"></div>
+        <div id="matchWinnerCard" class="modal-box" style="text-align:left;margin-bottom:20px;"></div>
         <button class="btn accent match-btn-full" id="matchAgainBtn" style="max-width:280px">↻ Neue Runde</button>
       </div>
     </div>
@@ -703,7 +703,8 @@ function ratingChipsHtml(e){
   return chips.join("");
 }
 
-function openMovieDetail(e){
+function buildMovieDetailHtml(e, opts){
+  opts = opts || {};
   const collLinks = (e.collections||[]).map(c =>
     `<div class="detail-coll-chip" data-coll-path="${encodeURIComponent(c.path)}">🗂️ ${c.title}</div>`
   ).join(" ");
@@ -715,8 +716,9 @@ function openMovieDetail(e){
   if(e.actors && e.actors.length) crewLines.push(`<b>Besetzung:</b> ${e.actors.join(", ")}`);
 
   const obsLink = obsidianLink(e.path);
+  const obsLinkId = opts.obsLinkId || "detailObsLink";
 
-  openDetailModal(`
+  return `
     <div class="detail-hero">
       ${e.image ? `<img src="${e.image}" alt="">` : `<div class="match-card-ph">${e.type.split(" ")[0]}</div>`}
       <div class="detail-body">
@@ -727,24 +729,34 @@ function openMovieDetail(e){
           ${e.genres.map(g=>`<div class="detail-chip">${g}</div>`).join("")}
           ${e.streaming.map(s=>`<div class="detail-chip">📺 ${s}</div>`).join("")}
         </div>
-        ${obsLink ? `<div class="detail-obs-link" id="detailObsLink">In Obsidian öffnen ↗</div>` : ""}
+        ${obsLink ? `<div class="detail-obs-link" id="${obsLinkId}">In Obsidian öffnen ↗</div>` : ""}
       </div>
     </div>
     ${e.plot ? `<div class="detail-section"><div class="detail-section-label">Handlung</div><div class="detail-plot">${e.plot}</div></div>` : ""}
     ${crewLines.length ? `<div class="detail-section"><div class="detail-section-label">Besetzung &amp; Crew</div><div class="detail-crew">${crewLines.join("<br>")}</div></div>` : ""}
     ${collLinks ? `<div class="detail-section"><div class="detail-section-label">Teil der Collection</div>${collLinks}</div>` : ""}
-  `);
+  `;
+}
 
+function wireMovieDetailLinks(container, e, obsLinkId){
+  const obsLink = obsidianLink(e.path);
+  obsLinkId = obsLinkId || "detailObsLink";
   if(obsLink){
-    document.getElementById("detailObsLink").addEventListener("click", () => window.location.href = obsLink);
+    const el = document.getElementById(obsLinkId);
+    if(el) el.addEventListener("click", () => window.location.href = obsLink);
   }
-  document.querySelectorAll(".detail-coll-chip").forEach(chip => {
+  container.querySelectorAll(".detail-coll-chip").forEach(chip => {
     chip.addEventListener("click", () => {
       const path = decodeURIComponent(chip.dataset.collPath);
       const coll = DATA.collections.find(c => c.path === path);
       if(coll) openCollectionDetail(coll);
     });
   });
+}
+
+function openMovieDetail(e){
+  openDetailModal(buildMovieDetailHtml(e));
+  wireMovieDetailLinks(document.getElementById("detailModalContent"), e);
 }
 
 function openCollectionDetail(c){
@@ -1167,10 +1179,10 @@ function addPeopleSection(container, title, ranks, topN){
 
 // Trag hier deine Firebase-Projekt-Konfiguration ein (siehe README, Abschnitt "Match-Funktion einrichten"):
 const FIREBASE_CONFIG = {
-  apiKey: "AIzaSyDAMrqsvNZ0huMIhW_nolsKaZTOikB8CXc",
-  authDomain: "whattowatch-f5d33.firebaseapp.com",
-  databaseURL: "https://whattowatch-f5d33-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "whattowatch-f5d33",
+  apiKey: "",
+  authDomain: "",
+  databaseURL: "",
+  projectId: "",
 };
 
 let matchDb = null;
@@ -1325,6 +1337,20 @@ function attachRoomListener(code){
     const room = snap.val();
     if(room) handleRoomUpdate(room);
   });
+  ensureWatchdog();
+}
+
+// ── Sicherheitsnetz: falls durch Timing/Netzwerk mal ein Übergangs-Trigger verloren geht,
+//    holt sich der Client den aktuellen Stand alle paar Sekunden selbstständig wieder ein,
+//    statt für immer auf "warte auf die anderen" hängen zu bleiben ──
+function ensureWatchdog(){
+  if(matchState.watchdogTimer) return;
+  matchState.watchdogTimer = setInterval(() => {
+    const room = matchState.lastRoom;
+    if(!room || !matchDb) return;
+    if(room.phase === "swiping") maybeAdvanceToBracket(room);
+    else if(room.phase === "bracket") maybeAdvanceBracketRound(room);
+  }, 2500);
 }
 
 function getEntry(path){ return matchState.pathToEntry[path] || null; }
@@ -1345,6 +1371,7 @@ function renderMiniCard(container, entry){
 
 // ── Haupt-Dispatcher: reagiert auf jede Änderung im Raum ──
 function handleRoomUpdate(room){
+  matchState.lastRoom = room;
   const me = room.participants && room.participants[matchState.name];
   if(!me) return;
 
@@ -1685,24 +1712,14 @@ function renderWinnerScreen(room){
   const el = document.getElementById("matchWinnerCard");
   el.innerHTML = "";
   if(entry){
-    if(entry.image){
-      const img = document.createElement("img");
-      img.src = entry.image;
-      el.appendChild(img);
-    }
-    const title = document.createElement("div");
-    title.className = "match-winner-title";
-    title.textContent = entry.title;
-    el.appendChild(title);
-    const meta = document.createElement("div");
-    meta.className = "match-winner-meta";
-    meta.textContent = [entry.type, entry.year, entry.rating ? `★ ${entry.rating}/10` : ""].filter(Boolean).join(" · ");
-    el.appendChild(meta);
+    el.innerHTML = buildMovieDetailHtml(entry, { obsLinkId: "winnerObsLink" });
+    wireMovieDetailLinks(el, entry, "winnerObsLink");
   }
 }
 
 document.getElementById("matchAgainBtn").addEventListener("click", () => {
   if(matchRoomRef) matchRoomRef.off();
+  if(matchState.watchdogTimer) clearInterval(matchState.watchdogTimer);
   matchState = { room: null, name: null, pool: [], pathToEntry: {}, shuffledOrder: [], boostShown: 0, currentCardIdx: undefined, currentCardBoosted: false };
   document.getElementById("createName").value = "";
   document.getElementById("joinName").value = "";
