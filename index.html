@@ -1167,10 +1167,10 @@ function addPeopleSection(container, title, ranks, topN){
 
 // Trag hier deine Firebase-Projekt-Konfiguration ein (siehe README, Abschnitt "Match-Funktion einrichten"):
 const FIREBASE_CONFIG = {
-  apiKey: "AIzaSyDAMrqsvNZ0huMIhW_nolsKaZTOikB8CXc",
-  authDomain: "whattowatch-f5d33.firebaseapp.com",
-  databaseURL: "https://whattowatch-f5d33-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "whattowatch-f5d33",
+  apiKey: "",
+  authDomain: "",
+  databaseURL: "",
+  projectId: "",
 };
 
 let matchDb = null;
@@ -1392,9 +1392,7 @@ function renderWaitroom(room){
 document.getElementById("startRoundBtn").addEventListener("click", async () => {
   await matchDb.ref(`rooms/${matchState.room}`).transaction(cur => {
     if(!cur || cur.phase !== "lobby") return;
-    cur.rosterNames = Object.keys(cur.participants || {});
-    cur.phase = "swiping";
-    return cur;
+    return { ...cur, rosterNames: Object.keys(cur.participants || {}), phase: "swiping" };
   });
 });
 
@@ -1416,10 +1414,7 @@ document.getElementById("startBracketBtn").addEventListener("click", async () =>
       const b = matches[i+1] !== undefined ? matches[i+1] : null;
       pairs[i/2] = { a: matches[i], b, votes: {}, winner: b === null ? matches[i] : null };
     }
-    cur.bracket = { round: 1, pairs };
-    cur.phase = "bracket";
-    cur.pendingMatches = null;
-    return cur;
+    return { ...cur, bracket: { round: 1, pairs }, phase: "bracket", pendingMatches: null };
   });
 });
 
@@ -1575,15 +1570,11 @@ async function maybeAdvanceToBracket(room){
   await matchDb.ref(`rooms/${matchState.room}`).transaction(cur => {
     if(!cur || cur.phase !== "swiping") return; // schon von jemand anders umgeschaltet -> abbrechen
     if(matches.length <= 1){
-      cur.phase = "done";
-      cur.winner = matches[0] !== undefined ? matches[0] : null;
-    } else {
-      const pm = {};
-      matches.forEach((idx, i) => pm[i] = idx);
-      cur.phase = "bracket-ready";
-      cur.pendingMatches = pm;
+      return { ...cur, phase: "done", winner: matches[0] !== undefined ? matches[0] : null };
     }
-    return cur;
+    const pm = {};
+    matches.forEach((idx, i) => pm[i] = idx);
+    return { ...cur, phase: "bracket-ready", pendingMatches: pm };
   });
 }
 
