@@ -1167,10 +1167,10 @@ function addPeopleSection(container, title, ranks, topN){
 
 // Trag hier deine Firebase-Projekt-Konfiguration ein (siehe README, Abschnitt "Match-Funktion einrichten"):
 const FIREBASE_CONFIG = {
-  apiKey: "AIzaSyDAMrqsvNZ0huMIhW_nolsKaZTOikB8CXc",
-  authDomain: "whattowatch-f5d33.firebaseapp.com",
-  databaseURL: "https://whattowatch-f5d33-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "whattowatch-f5d33",
+  apiKey: "",
+  authDomain: "",
+  databaseURL: "",
+  projectId: "",
 };
 
 let matchDb = null;
@@ -1584,7 +1584,7 @@ function renderBracketScreen(room){
   document.getElementById("bracketRoundNum").textContent = room.bracket ? room.bracket.round : 1;
   const pairs = (room.bracket && room.bracket.pairs) || {};
   const name = matchState.name;
-  const myPairKey = Object.keys(pairs).find(k => pairs[k].winner === null && !(pairs[k].votes||{})[name]);
+  const myPairKey = Object.keys(pairs).find(k => pairs[k].winner == null && !(pairs[k].votes||{})[name]);
 
   const duelEl = document.getElementById("matchDuel");
   const waitEl = document.getElementById("duelWaiting");
@@ -1597,7 +1597,7 @@ function renderBracketScreen(room){
   waitEl.style.display = "none";
   const pair = pairs[myPairKey];
   const entryA = getEntry(room.pool[pair.a]);
-  const entryB = pair.b !== null ? getEntry(room.pool[pair.b]) : null;
+  const entryB = pair.b != null ? getEntry(room.pool[pair.b]) : null;
 
   duelEl.innerHTML = "";
   duelEl.appendChild(makeDuelCard(entryA, pair.a, myPairKey));
@@ -1638,7 +1638,7 @@ async function maybeAdvanceBracketRound(room){
   let changed = false;
   pairKeys.forEach(k => {
     const pair = pairs[k];
-    if(pair.winner !== null || pair.b === null) return;
+    if(pair.winner != null || pair.b == null) return;
     const votes = pair.votes || {};
     if(names.every(n => votes[n] !== undefined)){
       const countA = Object.values(votes).filter(v => v === pair.a).length;
@@ -1652,7 +1652,7 @@ async function maybeAdvanceBracketRound(room){
     return;
   }
 
-  if(!pairKeys.every(k => pairs[k].winner !== null)) return;
+  if(!pairKeys.every(k => pairs[k].winner != null)) return;
 
   const winners = pairKeys.map(k => pairs[k].winner).sort((a,b) => parseInt(a)-parseInt(b));
   if(winners.length === 1){
