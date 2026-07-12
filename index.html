@@ -1167,15 +1167,15 @@ function addPeopleSection(container, title, ranks, topN){
 
 // Trag hier deine Firebase-Projekt-Konfiguration ein (siehe README, Abschnitt "Match-Funktion einrichten"):
 const FIREBASE_CONFIG = {
-  apiKey: "AIzaSyDAMrqsvNZ0huMIhW_nolsKaZTOikB8CXc",
-  authDomain: "whattowatch-f5d33.firebaseapp.com",
-  databaseURL: "https://whattowatch-f5d33-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "whattowatch-f5d33",
+  apiKey: "",
+  authDomain: "",
+  databaseURL: "",
+  projectId: "",
 };
 
 let matchDb = null;
 let matchRoomRef = null;
-let matchState = { room: null, name: null, pool: [], pathToEntry: {}, shuffledOrder: [], boostShown: 0 };
+let matchState = { room: null, name: null, pool: [], pathToEntry: {}, shuffledOrder: [], boostShown: 0, currentCardIdx: undefined, currentCardBoosted: false };
 
 function initFirebase(){
   if(!FIREBASE_CONFIG.databaseURL){
@@ -1246,12 +1246,14 @@ document.getElementById("createRoomBtn").addEventListener("click", async () => {
   const code = genRoomCode();
   const pool = {};
   poolPaths.forEach((p, i) => pool[i] = p);
+  const hostKey = sanitizeKey(name);
 
   try{
     await matchDb.ref("rooms/" + code).set({
       createdAt: Date.now(),
+      host: hostKey,
       filters, likeGoal: goal, pool,
-      phase: "swiping",
+      phase: "lobby",
       participants: {},
     });
     await joinExistingRoom(code, name);
@@ -1271,6 +1273,13 @@ document.getElementById("joinRoomBtn").addEventListener("click", async () => {
   try{
     const snap = await matchDb.ref("rooms/" + code).once("value");
     if(!snap.exists()){ errEl.textContent = "Diesen Raum-Code gibt es nicht."; return; }
+    const room = snap.val();
+    const key = sanitizeKey(name);
+    const alreadyIn = room.participants && room.participants[key];
+    if(room.phase !== "lobby" && !alreadyIn){
+      errEl.textContent = "Diese Runde läuft schon — bitte auf eine neue Runde warten (oder mit demselben Namen wieder verbinden, falls du schon dabei warst).";
+      return;
+    }
     await joinExistingRoom(code, name);
   }catch(err){
     console.error(err);
@@ -1289,6 +1298,7 @@ async function joinExistingRoom(code, name){
   watchlistAll.forEach(e => matchState.pathToEntry[e.path] = e);
   matchState.shuffledOrder = shuffleArray(Object.keys(room.pool || {}));
   matchState.boostShown = 0;
+  matchState.currentCardIdx = undefined;
 
   const existing = room.participants && room.participants[key];
   if(!existing){
@@ -1338,7 +1348,10 @@ function handleRoomUpdate(room){
   const me = room.participants && room.participants[matchState.name];
   if(!me) return;
 
-  if(room.phase === "swiping"){
+  if(room.phase === "lobby"){
+    renderWaitroom(room);
+    showMatchScreen("match-waitroom");
+  } else if(room.phase === "swiping"){
     if(me.ready){
       renderParticipants("waitParticipants", room.participants, room.likeGoal);
       showMatchScreen("match-waiting");
@@ -1347,6 +1360,9 @@ function handleRoomUpdate(room){
       showMatchScreen("match-swipe");
     }
     maybeAdvanceToBracket(room);
+  } else if(room.phase === "bracket-ready"){
+    renderBracketReady(room);
+    showMatchScreen("match-bracketready");
   } else if(room.phase === "bracket"){
     renderBracketScreen(room);
     showMatchScreen("match-bracket");
@@ -1356,6 +1372,56 @@ function handleRoomUpdate(room){
     showMatchScreen("match-winner");
   }
 }
+
+function renderWaitroom(room){
+  document.getElementById("waitroomCode").textContent = matchState.room;
+  const isHost = matchState.name === room.host;
+  document.getElementById("waitroomHostHint").style.display = isHost ? "" : "none";
+  document.getElementById("startRoundBtn").style.display = isHost ? "" : "none";
+  document.getElementById("waitroomNonHostHint").style.display = isHost ? "none" : "";
+  const el = document.getElementById("waitroomParticipants");
+  el.innerHTML = "";
+  Object.keys(room.participants || {}).forEach(name => {
+    const chip = document.createElement("div");
+    chip.className = "match-participant-chip" + (name === room.host ? " ready" : "");
+    chip.textContent = (name === room.host ? "👑 " : "") + name;
+    el.appendChild(chip);
+  });
+}
+
+document.getElementById("startRoundBtn").addEventListener("click", async () => {
+  await matchDb.ref(`rooms/${matchState.room}`).transaction(cur => {
+    if(!cur || cur.phase !== "lobby") return;
+    cur.rosterNames = Object.keys(cur.participants || {});
+    cur.phase = "swiping";
+    return cur;
+  });
+});
+
+function renderBracketReady(room){
+  const isHost = matchState.name === room.host;
+  const count = room.pendingMatches ? Object.keys(room.pendingMatches).length : 0;
+  document.getElementById("bracketReadyText").textContent = isHost
+    ? `${count} Titel haben mehrere Leute gemeinsam geliked! Bereit für die KO-Runde?`
+    : `${count} gemeinsame Treffer gefunden. Der Host bereitet die KO-Runde vor …`;
+  document.getElementById("startBracketBtn").style.display = isHost ? "" : "none";
+}
+
+document.getElementById("startBracketBtn").addEventListener("click", async () => {
+  await matchDb.ref(`rooms/${matchState.room}`).transaction(cur => {
+    if(!cur || cur.phase !== "bracket-ready" || !cur.pendingMatches) return;
+    const matches = Object.values(cur.pendingMatches).sort((a,b) => parseInt(a)-parseInt(b));
+    const pairs = {};
+    for(let i=0;i<matches.length;i+=2){
+      const b = matches[i+1] !== undefined ? matches[i+1] : null;
+      pairs[i/2] = { a: matches[i], b, votes: {}, winner: b === null ? matches[i] : null };
+    }
+    cur.bracket = { round: 1, pairs };
+    cur.phase = "bracket";
+    cur.pendingMatches = null;
+    return cur;
+  });
+});
 
 // ── Swipe-Screen ──
 function renderSwipeScreen(room, me){
@@ -1375,7 +1441,22 @@ function renderSwipeScreen(room, me){
   }
 
   const swiped = me.swiped || {};
-  const { idx: nextIdx, boosted } = pickNextIdx(room, me, swiped);
+
+  // Die aktuell gezeigte Karte bleibt stehen, bis sie tatsächlich geswiped wird — neue
+  // Boost-Vorschläge von anderen drängen sich also NICHT mitten rein, sondern reihen sich
+  // erst für die nächste Karte vorne in die Warteschlange ein.
+  let nextIdx, boosted;
+  if(matchState.currentCardIdx !== undefined && matchState.currentCardIdx !== null && swiped[matchState.currentCardIdx] === undefined){
+    nextIdx = matchState.currentCardIdx;
+    boosted = matchState.currentCardBoosted;
+  } else {
+    const picked = pickNextIdx(room, me, swiped);
+    nextIdx = picked.idx;
+    boosted = picked.boosted;
+    matchState.currentCardIdx = nextIdx;
+    matchState.currentCardBoosted = boosted;
+  }
+
   stack.innerHTML = "";
   if(nextIdx === undefined){
     stack.innerHTML = `<div class="match-empty-deck">🎬 Keine weiteren Titel mehr im Pool.<br>Du hast ${likeCount} von ${goal} Likes.</div>`;
@@ -1472,8 +1553,8 @@ function renderParticipants(containerId, participants, goal){
 // ── Übergang Swiping → Bracket (deterministisch, per Transaction konfliktfrei) ──
 async function maybeAdvanceToBracket(room){
   const participants = room.participants || {};
-  const names = Object.keys(participants);
-  if(names.length === 0 || !names.every(n => participants[n].ready)) return;
+  const names = room.rosterNames || Object.keys(participants);
+  if(names.length === 0 || !names.every(n => participants[n] && participants[n].ready)) return;
 
   const poolEntries = Object.entries(room.pool || {});
   let matches = poolEntries
@@ -1489,21 +1570,18 @@ async function maybeAdvanceToBracket(room){
   }
   matches.sort((a,b) => parseInt(a)-parseInt(b));
 
-  // Atomarer Übergang: phase + bracket (bzw. winner) in EINER Transaction auf die ganze
-  // Raum-Wurzel, damit kein Client je einen Zwischenzustand (phase="bracket" ohne bracket-Daten) sieht.
+  // Atomarer Übergang auf die ganze Raum-Wurzel. Bei genau einer Überschneidung direkt fertig,
+  // bei mehreren geht's in "bracket-ready" — der Host startet die KO-Runde dann manuell.
   await matchDb.ref(`rooms/${matchState.room}`).transaction(cur => {
     if(!cur || cur.phase !== "swiping") return; // schon von jemand anders umgeschaltet -> abbrechen
-    if(matches.length === 1){
+    if(matches.length <= 1){
       cur.phase = "done";
-      cur.winner = matches[0];
+      cur.winner = matches[0] !== undefined ? matches[0] : null;
     } else {
-      const pairs = {};
-      for(let i=0;i<matches.length;i+=2){
-        const b = matches[i+1] !== undefined ? matches[i+1] : null;
-        pairs[i/2] = { a: matches[i], b, votes: {}, winner: b === null ? matches[i] : null };
-      }
-      cur.phase = "bracket";
-      cur.bracket = { round: 1, pairs };
+      const pm = {};
+      matches.forEach((idx, i) => pm[i] = idx);
+      cur.phase = "bracket-ready";
+      cur.pendingMatches = pm;
     }
     return cur;
   });
@@ -1560,7 +1638,7 @@ async function castVote(pairKey, idx){
 // ── Übergang Duell-Runde → nächste Runde (jeder Client berechnet dasselbe Ergebnis) ──
 async function maybeAdvanceBracketRound(room){
   const participants = room.participants || {};
-  const names = Object.keys(participants);
+  const names = room.rosterNames || Object.keys(participants);
   const pairs = (room.bracket && room.bracket.pairs) || {};
   const pairKeys = Object.keys(pairs);
   if(pairKeys.length === 0) return;
@@ -1634,7 +1712,7 @@ function renderWinnerScreen(room){
 
 document.getElementById("matchAgainBtn").addEventListener("click", () => {
   if(matchRoomRef) matchRoomRef.off();
-  matchState = { room: null, name: null, pool: [], pathToEntry: {}, shuffledOrder: [], boostShown: 0 };
+  matchState = { room: null, name: null, pool: [], pathToEntry: {}, shuffledOrder: [], boostShown: 0, currentCardIdx: undefined, currentCardBoosted: false };
   document.getElementById("createName").value = "";
   document.getElementById("joinName").value = "";
   document.getElementById("joinCode").value = "";
