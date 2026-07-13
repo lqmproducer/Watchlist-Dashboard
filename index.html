@@ -1179,10 +1179,10 @@ function addPeopleSection(container, title, ranks, topN){
 
 // Trag hier deine Firebase-Projekt-Konfiguration ein (siehe README, Abschnitt "Match-Funktion einrichten"):
 const FIREBASE_CONFIG = {
-  apiKey: "AIzaSyDAMrqsvNZ0huMIhW_nolsKaZTOikB8CXc",
-  authDomain: "whattowatch-f5d33.firebaseapp.com",
-  databaseURL: "https://whattowatch-f5d33-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "whattowatch-f5d33",
+  apiKey: "",
+  authDomain: "",
+  databaseURL: "",
+  projectId: "",
 };
 
 let matchDb = null;
@@ -1670,7 +1670,19 @@ async function maybeAdvanceBracketRound(room){
     if(names.every(n => votes[n] !== undefined)){
       const countA = Object.values(votes).filter(v => v === pair.a).length;
       const countB = Object.values(votes).filter(v => v === pair.b).length;
-      updates[`bracket/pairs/${k}/winner`] = countA >= countB ? pair.a : pair.b; // Gleichstand: niedrigerer Index gewinnt
+      let winner;
+      if(countA > countB) winner = pair.a;
+      else if(countB > countA) winner = pair.b;
+      else {
+        // Gleichstand: höheres Online-Rating gewinnt (deterministisch für alle Clients gleich,
+        // da onlineRating aus den statischen Vault-Daten kommt); ohne Rating -> niedrigerer Index.
+        const entryA = getEntry(room.pool[pair.a]);
+        const entryB = getEntry(room.pool[pair.b]);
+        const ratingA = entryA && entryA.onlineRating != null ? entryA.onlineRating : -1;
+        const ratingB = entryB && entryB.onlineRating != null ? entryB.onlineRating : -1;
+        winner = ratingA >= ratingB ? pair.a : pair.b;
+      }
+      updates[`bracket/pairs/${k}/winner`] = winner;
       changed = true;
     }
   });
