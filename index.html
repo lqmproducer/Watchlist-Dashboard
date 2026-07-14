@@ -225,6 +225,11 @@ select.select{width:auto;padding-right:28px;cursor:pointer;}
 .match-input, .match-select{margin-bottom:0;}
 .match-btn-full{width:100%;margin-top:16px;padding:11px;font-size:13px;}
 .match-error{color:var(--red);font-size:12px;margin-top:8px;min-height:1em;}
+.match-checkbox-list{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:2px;max-height:130px;overflow-y:auto;padding:2px 0;}
+.match-filter-chip{font-size:11px;padding:5px 11px;border-radius:99px;border:1.5px solid var(--border);
+  background:var(--panel-2);color:var(--text-muted);cursor:pointer;user-select:none;transition:.15s;}
+.match-filter-chip.active{background:rgba(232,179,76,.12);color:var(--gold);border-color:var(--gold);}
+.match-pool-count{font-size:11px;color:var(--text-faint);font-family:var(--font-mono);margin-top:8px;}
 
 .match-roomcode{text-align:center;font-family:var(--font-mono);font-size:12px;color:var(--text-faint);margin-bottom:14px;}
 .match-roomcode span{color:var(--gold);font-weight:700;letter-spacing:.08em;}
@@ -419,18 +424,6 @@ select.select{width:auto;padding-right:28px;cursor:pointer;}
           <div class="section-label" style="margin-top:0">🎬 Neue Runde starten</div>
           <label class="match-label">Dein Profilname</label>
           <input class="input match-input" id="createName" placeholder="z. B. Luka" maxlength="20">
-          <label class="match-label">Typ</label>
-          <select class="select match-select" id="createType">
-            <option value="all">Filme &amp; Serien</option>
-            <option value="film">Nur Filme</option>
-            <option value="serie">Nur Serien</option>
-          </select>
-          <label class="match-label">Genre</label>
-          <select class="select match-select" id="createGenre"><option value="all">Alle Genres</option></select>
-          <label class="match-label">Streaming-Dienst</label>
-          <select class="select match-select" id="createService"><option value="all">Alle Dienste</option></select>
-          <label class="match-label">Ziel-Likes pro Person</label>
-          <input class="input match-input" id="createGoal" type="number" value="15" min="3" max="50">
           <button class="btn accent match-btn-full" id="createRoomBtn">🚀 Runde erstellen</button>
           <div class="match-error" id="createError"></div>
         </div>
@@ -473,14 +466,33 @@ select.select{width:auto;padding-right:28px;cursor:pointer;}
     </div>
 
     <!-- Screen: Warteraum (nach Erstellen/Beitreten, vor Rundenstart durch den Host) -->
-    <div class="match-screen" id="match-waitroom" style="display:none">
+    <div class="match-screen" id="match-waitroom" style="display:none; max-width:460px;">
       <div class="match-roomcode">Raum-Code: <span id="waitroomCode"></span></div>
       <div class="empty" id="waitroomHostHint">
         <div class="icon">👑</div>
-        Du bist Host dieser Runde. Starte, sobald alle da sind — danach kann niemand mehr beitreten.
+        Du bist Host dieser Runde. Stell die Filter ein und starte, sobald alle da sind — danach kann niemand mehr beitreten.
       </div>
+
+      <div class="match-panel" id="waitroomFilters" style="display:none;margin-bottom:16px">
+        <div class="section-label" style="margin-top:0">🎛️ Filter (nur du als Host siehst das)</div>
+        <label class="match-label">Typ</label>
+        <select class="select match-select" id="lobbyType">
+          <option value="all">Filme &amp; Serien</option>
+          <option value="film">Nur Filme</option>
+          <option value="serie">Nur Serien</option>
+        </select>
+        <label class="match-label">Genres <span style="color:var(--text-faint);font-weight:400">(nichts ausgewählt = alle)</span></label>
+        <div class="match-checkbox-list" id="lobbyGenres"></div>
+        <label class="match-label">Streaming-Dienste <span style="color:var(--text-faint);font-weight:400">(nichts ausgewählt = alle)</span></label>
+        <div class="match-checkbox-list" id="lobbyServices"></div>
+        <label class="match-label">Ziel-Likes pro Person</label>
+        <input class="input match-input" id="lobbyGoal" type="number" value="15" min="3" max="50">
+        <div class="match-pool-count" id="lobbyPoolCount"></div>
+      </div>
+
       <div class="match-participants" id="waitroomParticipants"></div>
       <button class="btn accent match-btn-full" id="startRoundBtn" style="max-width:280px;margin:18px auto 0;display:block">🚀 Runde starten</button>
+      <div class="match-error" id="startRoundError" style="text-align:center"></div>
       <div class="match-duel-waiting" id="waitroomNonHostHint" style="display:none">Warte, bis der Host die Runde startet …</div>
     </div>
 
@@ -1179,15 +1191,15 @@ function addPeopleSection(container, title, ranks, topN){
 
 // Trag hier deine Firebase-Projekt-Konfiguration ein (siehe README, Abschnitt "Match-Funktion einrichten"):
 const FIREBASE_CONFIG = {
-  apiKey: "AIzaSyDAMrqsvNZ0huMIhW_nolsKaZTOikB8CXc",
-  authDomain: "whattowatch-f5d33.firebaseapp.com",
-  databaseURL: "https://whattowatch-f5d33-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "whattowatch-f5d33",
+  apiKey: "",
+  authDomain: "",
+  databaseURL: "",
+  projectId: "",
 };
 
 let matchDb = null;
 let matchRoomRef = null;
-let matchState = { room: null, name: null, pool: [], pathToEntry: {}, shuffledOrder: [], boostShown: 0, currentCardIdx: undefined, currentCardBoosted: false };
+let matchState = { room: null, name: null, pool: [], pathToEntry: {}, shuffledOrder: [], boostShown: 0, currentCardIdx: undefined, currentCardBoosted: false, lobbyFiltersInited: false };
 
 function initFirebase(){
   if(!FIREBASE_CONFIG.databaseURL){
@@ -1224,18 +1236,47 @@ function genRoomCode(){
 function initMatchFilters(){
   const genres = [...new Set(watchlistAll.flatMap(e => e.genres))].sort((a,b)=>a.localeCompare(b,"de"));
   const services = [...new Set(watchlistAll.flatMap(e => e.streaming))].sort((a,b)=>a.localeCompare(b,"de"));
-  const g = document.getElementById("createGenre");
-  genres.forEach(x => g.add(new Option(x,x)));
-  const s = document.getElementById("createService");
-  services.forEach(x => s.add(new Option(x,x)));
+  buildFilterChips("lobbyGenres", genres);
+  buildFilterChips("lobbyServices", services);
 }
+
+function buildFilterChips(containerId, values){
+  const el = document.getElementById(containerId);
+  el.innerHTML = "";
+  values.forEach(v => {
+    const chip = document.createElement("div");
+    chip.className = "match-filter-chip";
+    chip.textContent = v;
+    chip.dataset.value = v;
+    chip.addEventListener("click", () => {
+      chip.classList.toggle("active");
+      updateLobbyPoolCount();
+    });
+    el.appendChild(chip);
+  });
+}
+
+function getLobbySelectedFilters(){
+  const type = document.getElementById("lobbyType").value;
+  const genres = [...document.querySelectorAll("#lobbyGenres .match-filter-chip.active")].map(c => c.dataset.value);
+  const services = [...document.querySelectorAll("#lobbyServices .match-filter-chip.active")].map(c => c.dataset.value);
+  const goal = Math.max(3, parseInt(document.getElementById("lobbyGoal").value) || 15);
+  return { type, genres, services, goal };
+}
+
+function updateLobbyPoolCount(){
+  const filters = getLobbySelectedFilters();
+  const count = buildMatchPool(filters).length;
+  document.getElementById("lobbyPoolCount").textContent = `📊 ${count} Titel passen zu diesen Filtern`;
+}
+document.getElementById("lobbyType").addEventListener("change", updateLobbyPoolCount);
 
 function buildMatchPool(filters){
   return watchlistAll.filter(e => {
     if(filters.type === "film" && e.type !== "🎬 Film") return false;
     if(filters.type === "serie" && e.type !== "📺 Serie") return false;
-    if(filters.genre !== "all" && !e.genres.includes(filters.genre)) return false;
-    if(filters.service !== "all" && !e.streaming.includes(filters.service)) return false;
+    if(filters.genres && filters.genres.length && !e.genres.some(g => filters.genres.includes(g))) return false;
+    if(filters.services && filters.services.length && !e.streaming.some(s => filters.services.includes(s))) return false;
     return true;
   }).map(e => e.path);
 }
@@ -1246,25 +1287,14 @@ document.getElementById("createRoomBtn").addEventListener("click", async () => {
   errEl.textContent = "";
   if(!matchDb){ errEl.textContent = "Match-Funktion ist nicht eingerichtet."; return; }
   if(!name){ errEl.textContent = "Bitte einen Profilnamen eingeben."; return; }
-  const filters = {
-    type: document.getElementById("createType").value,
-    genre: document.getElementById("createGenre").value,
-    service: document.getElementById("createService").value,
-  };
-  const goal = Math.max(3, parseInt(document.getElementById("createGoal").value) || 15);
-  const poolPaths = buildMatchPool(filters);
-  if(poolPaths.length < 4){ errEl.textContent = "Zu wenige Titel mit diesen Filtern (mind. 4 nötig)."; return; }
 
   const code = genRoomCode();
-  const pool = {};
-  poolPaths.forEach((p, i) => pool[i] = p);
   const hostKey = sanitizeKey(name);
 
   try{
     await matchDb.ref("rooms/" + code).set({
       createdAt: Date.now(),
       host: hostKey,
-      filters, likeGoal: goal, pool,
       phase: "lobby",
       participants: {},
     });
@@ -1311,6 +1341,7 @@ async function joinExistingRoom(code, name){
   matchState.shuffledOrder = shuffleArray(Object.keys(room.pool || {}));
   matchState.boostShown = 0;
   matchState.currentCardIdx = undefined;
+  matchState.lobbyFiltersInited = false;
 
   const existing = room.participants && room.participants[key];
   if(!existing){
@@ -1404,8 +1435,13 @@ function renderWaitroom(room){
   document.getElementById("waitroomCode").textContent = matchState.room;
   const isHost = matchState.name === room.host;
   document.getElementById("waitroomHostHint").style.display = isHost ? "" : "none";
+  document.getElementById("waitroomFilters").style.display = isHost ? "" : "none";
   document.getElementById("startRoundBtn").style.display = isHost ? "" : "none";
   document.getElementById("waitroomNonHostHint").style.display = isHost ? "none" : "";
+  if(isHost && !matchState.lobbyFiltersInited){
+    matchState.lobbyFiltersInited = true;
+    updateLobbyPoolCount();
+  }
   const el = document.getElementById("waitroomParticipants");
   el.innerHTML = "";
   Object.keys(room.participants || {}).forEach(name => {
@@ -1417,9 +1453,27 @@ function renderWaitroom(room){
 }
 
 document.getElementById("startRoundBtn").addEventListener("click", async () => {
+  const errEl = document.getElementById("startRoundError");
+  errEl.textContent = "";
+  const filters = getLobbySelectedFilters();
+  const poolPaths = buildMatchPool(filters);
+  if(poolPaths.length < 4){
+    errEl.textContent = "Zu wenige Titel mit diesen Filtern (mind. 4 nötig).";
+    return;
+  }
+  const pool = {};
+  poolPaths.forEach((p, i) => pool[i] = p);
+
   await matchDb.ref(`rooms/${matchState.room}`).transaction(cur => {
     if(!cur || cur.phase !== "lobby") return;
-    return { ...cur, rosterNames: Object.keys(cur.participants || {}), phase: "swiping" };
+    return {
+      ...cur,
+      rosterNames: Object.keys(cur.participants || {}),
+      phase: "swiping",
+      pool,
+      likeGoal: filters.goal,
+      filters: { type: filters.type, genres: filters.genres, services: filters.services },
+    };
   });
 });
 
@@ -1453,6 +1507,12 @@ function renderSwipeScreen(room, me){
   document.getElementById("swipeProgressFill").style.width = Math.min(100, (likeCount/goal)*100) + "%";
   document.getElementById("swipeProgressLabel").textContent = `❤️ ${likeCount} / ${goal}`;
   renderParticipants("swipeParticipants", room.participants, goal);
+
+  // Der Pool existiert erst ab Rundenstart (nicht mehr beim Beitreten) — die persönliche
+  // Zufallsreihenfolge daher erst hier (einmalig) berechnen, sobald er wirklich da ist.
+  if((!matchState.shuffledOrder || !matchState.shuffledOrder.length) && room.pool){
+    matchState.shuffledOrder = shuffleArray(Object.keys(room.pool));
+  }
 
   const stack = document.getElementById("matchCardStack");
 
@@ -1732,7 +1792,7 @@ function renderWinnerScreen(room){
 document.getElementById("matchAgainBtn").addEventListener("click", () => {
   if(matchRoomRef) matchRoomRef.off();
   if(matchState.watchdogTimer) clearInterval(matchState.watchdogTimer);
-  matchState = { room: null, name: null, pool: [], pathToEntry: {}, shuffledOrder: [], boostShown: 0, currentCardIdx: undefined, currentCardBoosted: false };
+  matchState = { room: null, name: null, pool: [], pathToEntry: {}, shuffledOrder: [], boostShown: 0, currentCardIdx: undefined, currentCardBoosted: false, lobbyFiltersInited: false };
   document.getElementById("createName").value = "";
   document.getElementById("joinName").value = "";
   document.getElementById("joinCode").value = "";
