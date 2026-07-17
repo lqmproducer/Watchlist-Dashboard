@@ -2,8 +2,20 @@
 <html lang="de">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Watchlist</title>
+
+<!-- PWA / "Zum Home-Bildschirm hinzufügen" -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#faf4ed">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Watchlist">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16.png">
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
@@ -13,6 +25,7 @@
   /* Rosé Pine Light / "Dawn" (AnuPpuccin Light-Flavor: ctp-rosepine-light)
      + deine eigenen Overrides: Akzent = Teal, custom subtext/overlay/peach */
   --bg:            #faf4ed; /* base — cremeweiß */
+  --bg-rgb:        250,244,237;
   --panel:         #fffaf3; /* surface */
   --panel-2:       #f2e9e1; /* highlight-low */
   --border:        #cccccc; /* dein overlay1-Override */
@@ -32,8 +45,9 @@
   --font-body:     'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   --font-mono:     'IBM Plex Mono', monospace;
 }
-*{box-sizing:border-box;}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 html,body{margin:0;padding:0;}
+html{-webkit-text-size-adjust:100%;overscroll-behavior-y:contain;}
 body{
   background:
     radial-gradient(ellipse 900px 500px at 15% -10%, rgba(26,125,164,0.06), transparent),
@@ -42,6 +56,18 @@ body{
   color:var(--text);
   font-family:var(--font-body);
   min-height:100vh;
+  min-height:100dvh;
+  -webkit-font-smoothing:antialiased;
+  touch-action:manipulation; /* kein 300ms-Doppeltap-Zoom-Delay auf Touch-Geräten */
+  overscroll-behavior-y:contain; /* kein "Durchziehen" zur weißen Fläche unter/über der Seite */
+  padding-top:env(safe-area-inset-top);
+  padding-bottom:env(safe-area-inset-bottom);
+  padding-left:env(safe-area-inset-left);
+  padding-right:env(safe-area-inset-right);
+}
+button, .card, .chip, .ticket-tab, .btn, .toggle-btn, .sortbtn, .bm-btn, .match-action-btn,
+.match-filter-chip, .match-duel-card, .detail-coll-row, .tile, .coll-collage img, input, select{
+  -webkit-tap-highlight-color:transparent;
 }
 a{color:inherit;}
 ::selection{background:var(--gold);color:var(--accent-contrast);}
@@ -80,7 +106,9 @@ a{color:inherit;}
 .view.active{display:block;}
 
 /* ── Filter-Leiste ────────────────────────────────────────── */
-.filterbar{display:flex;flex-wrap:wrap;gap:9px;align-items:center;margin-bottom:16px;}
+.filterbar{display:flex;flex-wrap:wrap;gap:9px;align-items:center;margin-bottom:16px;
+  position:sticky;top:0;z-index:10;padding:10px 0;margin-top:-10px;
+  background:rgba(var(--bg-rgb),0.92);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);}
 .search-wrap{position:relative;flex:1;min-width:200px;max-width:320px;}
 .search-wrap svg{position:absolute;left:11px;top:50%;transform:translateY(-50%);opacity:.4;pointer-events:none;}
 .input, select.select{
@@ -91,6 +119,11 @@ a{color:inherit;}
 .input:focus, select.select:focus{border-color:var(--teal);}
 select.select{width:auto;padding-right:28px;cursor:pointer;}
 .chips{display:flex;gap:6px;flex-wrap:wrap;}
+@media(max-width:820px){
+  /* iOS zoomt automatisch in Inputs mit <16px Schrift beim Fokussieren -> auf mobilen
+     Breiten hochsetzen, damit Tippen in Filter/Suche/Match-Formularen nicht reinzoomt. */
+  .input, select.select, .match-input, .match-select{font-size:16px;}
+}
 .chip{
   display:inline-flex;align-items:center;gap:6px;padding:7px 13px;border-radius:99px;
   font-size:11.5px;font-weight:600;cursor:pointer;border:1.5px solid var(--border);
@@ -132,9 +165,9 @@ select.select{width:auto;padding-right:28px;cursor:pointer;}
 .badge-unwatched{background:rgba(0,0,0,.55);color:var(--text-muted);border:1px solid var(--border);}
 .fsk-badge{position:absolute;bottom:8px;left:8px;font-size:9.5px;font-weight:700;padding:2px 7px;
   border-radius:99px;letter-spacing:.04em;color:#fff;font-family:var(--font-mono);z-index:2;}
-.bm-btn{position:absolute;top:8px;right:8px;width:26px;height:26px;border-radius:50%;
+.bm-btn{position:absolute;top:7px;right:7px;width:30px;height:30px;border-radius:50%;
   background:rgba(0,0,0,.55);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;
-  font-size:13px;cursor:pointer;}
+  font-size:14px;cursor:pointer;}
 .bm-btn.on{background:var(--amber);border-color:var(--amber);}
 
 .coll-collage{display:grid;width:100%;aspect-ratio:2/3;background:var(--panel-2);}
@@ -708,6 +741,7 @@ function obsidianLink(path){
 // ═══════════════ DETAIL-MODAL ═══════════════
 function closeDetailModal(){
   document.getElementById("detailModal").classList.remove("visible");
+  document.body.style.overflow = "";
 }
 document.getElementById("detailModalClose").addEventListener("click", closeDetailModal);
 document.getElementById("detailModal").addEventListener("click", (ev) => {
@@ -719,6 +753,7 @@ function openDetailModal(html){
   document.getElementById("detailModalContent").innerHTML = html;
   document.getElementById("detailModal").classList.add("visible");
   document.getElementById("detailModalBox").scrollTop = 0;
+  document.body.style.overflow = "hidden"; // Hintergrund darf nicht mitscrollen (iOS-Bug bei fixed Overlays)
 }
 
 function ratingChipsHtml(e){
@@ -1221,10 +1256,10 @@ function addPeopleSection(container, title, ranks, topN){
 
 // Trag hier deine Firebase-Projekt-Konfiguration ein (siehe README, Abschnitt "Match-Funktion einrichten"):
 const FIREBASE_CONFIG = {
-  apiKey: "AIzaSyDAMrqsvNZ0huMIhW_nolsKaZTOikB8CXc",
-  authDomain: "whattowatch-f5d33.firebaseapp.com",
-  databaseURL: "https://whattowatch-f5d33-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "whattowatch-f5d33",
+  apiKey: "",
+  authDomain: "",
+  databaseURL: "",
+  projectId: "",
 };
 
 let matchDb = null;
@@ -1846,7 +1881,7 @@ async function checkPassword() {
   
   if (inputHash === CORRECT_PASSWORD_HASH) {
     // Passwort korrekt: Daten laden, Overlay entfernen, Zustand im Session-Speicher merken
-    sessionStorage.setItem("watchlist_authenticated", "true");
+    localStorage.setItem("watchlist_authenticated", "true");
     document.getElementById("password-overlay").remove();
     loadData();
   } else {
@@ -1864,7 +1899,7 @@ document.getElementById("pwd-input").addEventListener("keypress", (e) => {
 });
 
 // Prüfen, ob der User in dieser Session bereits eingeloggt war
-if (sessionStorage.getItem("watchlist_authenticated") === "true") {
+if (localStorage.getItem("watchlist_authenticated") === "true") {
   document.getElementById("password-overlay").remove();
   loadData();
 }
