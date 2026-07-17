@@ -10,19 +10,22 @@
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-database-compat.js"></script>
 <style>
 :root{
-  --bg:            #12141a;
-  --panel:         #191c24;
-  --panel-2:       #1f2330;
-  --border:        #2a2e3c;
-  --text:          #edeff4;
-  --text-muted:    #8b90a5;
-  --text-faint:    #565b70;
-  --gold:          #e8b34c;
-  --teal:          #4fa8a0;
-  --amber:         #d98f3f;
-  --green:         #3fa679;
-  --red:           #e2574c;
-  --grey:          #6b7080;
+  /* Rosé Pine Light / "Dawn" (AnuPpuccin Light-Flavor: ctp-rosepine-light)
+     + deine eigenen Overrides: Akzent = Teal, custom subtext/overlay/peach */
+  --bg:            #faf4ed; /* base — cremeweiß */
+  --panel:         #fffaf3; /* surface */
+  --panel-2:       #f2e9e1; /* highlight-low */
+  --border:        #cccccc; /* dein overlay1-Override */
+  --text:          #575279; /* Rosé-Pine-Text, violettgrau */
+  --text-muted:    #ee653a; /* dein subtext1-Override */
+  --text-faint:    #0c9fce; /* dein subtext0-Override */
+  --gold:          #1a7da4; /* dein Teal-Override — Hauptakzent (Light-Theme-Accent) */
+  --teal:          #dd7f67; /* dein Peach-Override — Sekundärakzent */
+  --amber:         #ea9d34; /* Rosé-Pine „gold" — Status: am Schauen */
+  --green:         #6f9960; /* gedämpftes Salbeigrün, passend zum warmen Grundton */
+  --red:           #b4637a; /* Rosé-Pine „love" — Status: negativ/overrated */
+  --grey:          #797593; /* Rosé-Pine „subtle" — neutraler Status */
+  --accent-contrast: #ffffff; /* Textfarbe auf Akzentflächen — hell, da Akzente hier gesättigt/dunkler sind */
   --radius:        10px;
   --radius-lg:     16px;
   --font-display:  'Bebas Neue', sans-serif;
@@ -33,15 +36,15 @@
 html,body{margin:0;padding:0;}
 body{
   background:
-    radial-gradient(ellipse 900px 500px at 15% -10%, rgba(232,179,76,0.06), transparent),
-    radial-gradient(ellipse 700px 500px at 100% 0%, rgba(79,168,160,0.07), transparent),
+    radial-gradient(ellipse 900px 500px at 15% -10%, rgba(26,125,164,0.06), transparent),
+    radial-gradient(ellipse 700px 500px at 100% 0%, rgba(221,127,103,0.07), transparent),
     var(--bg);
   color:var(--text);
   font-family:var(--font-body);
   min-height:100vh;
 }
 a{color:inherit;}
-::selection{background:var(--gold);color:#1a1a1a;}
+::selection{background:var(--gold);color:var(--accent-contrast);}
 
 /* ── Kopfbereich mit Ticket-Tabs ─────────────────────────── */
 .page{max-width:1180px;margin:0 auto;padding:28px 20px 80px;}
@@ -105,8 +108,8 @@ select.select{width:auto;padding-right:28px;cursor:pointer;}
 .btn{padding:8px 15px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;
   border:1.5px solid var(--border);background:var(--panel);color:var(--text);font-family:var(--font-body);}
 .btn:hover{background:var(--panel-2);}
-.btn.accent{background:var(--gold);border-color:var(--gold);color:#1a1408;}
-.btn.bm-active{background:var(--amber);border-color:var(--amber);color:#1a1408;}
+.btn.accent{background:var(--gold);border-color:var(--gold);color:var(--accent-contrast);}
+.btn.bm-active{background:var(--amber);border-color:var(--amber);color:var(--accent-contrast);}
 
 /* ── Grid & Karten ────────────────────────────────────────── */
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px;}
@@ -124,9 +127,11 @@ select.select{width:auto;padding-right:28px;cursor:pointer;}
 .card-rating{font-size:11.5px;color:var(--gold);font-weight:700;margin-top:4px;font-family:var(--font-mono);}
 .badge{position:absolute;top:8px;left:8px;font-size:10px;font-weight:700;padding:3px 8px;
   border-radius:99px;font-family:var(--font-mono);letter-spacing:.02em;}
-.badge-watching{background:var(--amber);color:#1a1408;}
-.badge-watched{background:var(--green);color:#082018;}
+.badge-watching{background:var(--amber);color:var(--accent-contrast);}
+.badge-watched{background:var(--green);color:var(--accent-contrast);}
 .badge-unwatched{background:rgba(0,0,0,.55);color:var(--text-muted);border:1px solid var(--border);}
+.fsk-badge{position:absolute;bottom:8px;left:8px;font-size:9.5px;font-weight:700;padding:2px 7px;
+  border-radius:99px;letter-spacing:.04em;color:#fff;font-family:var(--font-mono);z-index:2;}
 .bm-btn{position:absolute;top:8px;right:8px;width:26px;height:26px;border-radius:50%;
   background:rgba(0,0,0,.55);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;
   font-size:13px;cursor:pointer;}
@@ -189,7 +194,7 @@ select.select{width:auto;padding-right:28px;cursor:pointer;}
 .toggle-row{display:flex;gap:6px;margin-bottom:10px;}
 .toggle-btn{font-size:11px;padding:4px 11px;border-radius:99px;border:1px solid var(--border);
   cursor:pointer;background:var(--panel-2);color:var(--text-muted);font-family:var(--font-body);}
-.toggle-btn.active{background:var(--teal);color:#08201d;border-color:var(--teal);}
+.toggle-btn.active{background:var(--teal);color:var(--accent-contrast);border-color:var(--teal);}
 
 .two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
 @media(max-width:720px){.two-col{grid-template-columns:1fr;}}
@@ -249,7 +254,7 @@ select.select{width:auto;padding-right:28px;cursor:pointer;}
 .match-card-meta{font-size:11.5px;color:var(--text-faint);}
 .match-empty-deck{text-align:center;padding:40px 14px;color:var(--text-faint);}
 .match-boost-badge{position:absolute;top:8px;left:8px;right:8px;z-index:2;font-size:10.5px;font-weight:700;
-  padding:5px 10px;border-radius:99px;background:var(--gold);color:#1a1408;text-align:center;
+  padding:5px 10px;border-radius:99px;background:var(--gold);color:var(--accent-contrast);text-align:center;
   font-family:var(--font-mono);letter-spacing:.02em;}
 
 .match-swipe-actions{display:flex;justify-content:center;gap:22px;margin-top:20px;}
@@ -337,13 +342,13 @@ select.select{width:auto;padding-right:28px;cursor:pointer;}
 </style>
 </head>
 <body>
-<div id="password-overlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #12141a; z-index: 999999; display: flex; flex-direction: column; justify-content: center; align-items: center; font-family: 'Inter', sans-serif; color: #edeff4;">
-  <div style="background: #191c24; padding: 30px; border-radius: 12px; border: 1px solid #2a2e3c; text-align: center; max-width: 360px; width: 90%; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
-    <h2 style="font-family: 'Bebas Neue', sans-serif; letter-spacing: 2px; font-size: 28px; margin-bottom: 20px; color: #e8b34c;">🔒 Zugriff geschützt</h2>
-    <p style="font-size: 14px; color: #b0b5cc; margin-bottom: 20px;">Bitte gib das Passwort ein, um die Watchlist anzusehen.</p>
-    <input type="password" id="pwd-input" placeholder="Passwort eingeben..." style="width: 100%; padding: 12px; border-radius: 6px; border: 1px solid #2a2e3c; background: #12141a; color: #fff; font-size: 16px; outline: none; text-align: center; margin-bottom: 15px;">
-    <button id="pwd-btn" style="width: 100%; padding: 12px; border-radius: 6px; border: none; background: #e8b34c; color: #12141a; font-weight: bold; font-size: 16px; cursor: pointer; transition: opacity 0.2s;">Einloggen</button>
-    <p id="pwd-error" style="color: #e2574c; font-size: 13px; margin-top: 12px; display: none;">❌ Falsches Passwort!</p>
+<div id="password-overlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg); z-index: 999999; display: flex; flex-direction: column; justify-content: center; align-items: center; font-family: 'Inter', sans-serif; color: var(--text);">
+  <div style="background: var(--panel); padding: 30px; border-radius: 12px; border: 1px solid var(--border); text-align: center; max-width: 360px; width: 90%; box-shadow: 0 10px 30px rgba(0,0,0,0.25);">
+    <h2 style="font-family: 'Bebas Neue', sans-serif; letter-spacing: 2px; font-size: 28px; margin-bottom: 20px; color: var(--gold);">🔒 Zugriff geschützt</h2>
+    <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 20px;">Bitte gib das Passwort ein, um die Watchlist anzusehen.</p>
+    <input type="password" id="pwd-input" placeholder="Passwort eingeben..." style="width: 100%; padding: 12px; border-radius: 6px; border: 1px solid var(--border); background: var(--panel-2); color: var(--text); font-size: 16px; outline: none; text-align: center; margin-bottom: 15px;">
+    <button id="pwd-btn" style="width: 100%; padding: 12px; border-radius: 6px; border: none; background: var(--gold); color: var(--accent-contrast); font-weight: bold; font-size: 16px; cursor: pointer; transition: opacity 0.2s;">Einloggen</button>
+    <p id="pwd-error" style="color: var(--red); font-size: 13px; margin-top: 12px; display: none;">❌ Falsches Passwort!</p>
   </div>
 </div>
 <div class="page">
@@ -535,7 +540,7 @@ select.select{width:auto;padding-right:28px;cursor:pointer;}
 </div>
 
 <script>
-const PALETTE = ["#e8b34c","#4fa8a0","#d98f3f","#3fa679","#8b7fd9","#e2574c","#6bc7c0","#c98fd9","#7fb8e8","#e8d24c"];
+const PALETTE = ["#1a7da4","#dd7f67","#ea9d34","#907aa9","#b4637a","#56949f","#d7827e","#286983","#6f9960","#797593"];
 
 let DATA = { movies: [], series: [], collections: [], people: {} };
 let watchlistAll = [];
@@ -686,6 +691,14 @@ function badgeLabel(status){
   return status === "watching" ? "▶ Am Schauen" : status === "watched" ? "✓ Gesehen" : "◌ Geplant";
 }
 
+function fskColor(fsk){
+  if(fsk === 0) return "#a6e3a1";  // green
+  if(fsk <= 6) return "#94e2d5";   // teal
+  if(fsk <= 12) return "#f9e2af";  // yellow
+  if(fsk <= 16) return "#fab387";  // peach
+  return "#f38ba8"; // 18 — red
+}
+
 function obsidianLink(path){
   if(!DATA.vaultName) return null;
   const noExt = path.replace(/\.md$/, "");
@@ -735,7 +748,7 @@ function buildMovieDetailHtml(e, opts){
       ${e.image ? `<img src="${e.image}" alt="">` : `<div class="match-card-ph">${e.type.split(" ")[0]}</div>`}
       <div class="detail-body">
         <div class="detail-title">${e.title}</div>
-        <div class="detail-meta">${[e.type, e.year, e.duration].filter(Boolean).join(" · ")}</div>
+        <div class="detail-meta">${[e.type, e.year, e.duration, e.fsk != null ? `FSK ${e.fsk}` : null].filter(Boolean).join(" · ")}</div>
         <div class="detail-ratings">${ratingChipsHtml(e)}</div>
         <div class="detail-chips">
           ${e.genres.map(g=>`<div class="detail-chip">${g}</div>`).join("")}
@@ -840,6 +853,14 @@ function renderCard(e){
   badge.className = badgeClass(e.status);
   badge.textContent = badgeLabel(e.status);
   card.appendChild(badge);
+
+  if(e.fsk != null){
+    const fskBadge = document.createElement("div");
+    fskBadge.className = "fsk-badge";
+    fskBadge.style.background = fskColor(e.fsk);
+    fskBadge.textContent = `FSK ${e.fsk}`;
+    card.appendChild(fskBadge);
+  }
 
   const body = document.createElement("div");
   body.className = "card-body";
@@ -946,7 +967,7 @@ function renderUebersicht(){
     return;
   }
 
-  const GENRE_MIN = 3, BAYES_C = 3, ACTOR_MIN = 3, DIRECTOR_MIN = 2, TOP_SERVICE_GENRES = 3;
+  const GENRE_MIN = 3, BAYES_C = 3, ACTOR_MIN = 3, DIRECTOR_MIN = 2, WRITER_MIN = 2, TOP_SERVICE_GENRES = 3;
 
   function topGenresForTitles(titles, topN = TOP_SERVICE_GENRES){
     const byG = groupBy(titles, e => e.genres);
@@ -961,6 +982,7 @@ function renderUebersicht(){
   const byDecade = groupBy(watched, e => [decade(e.year)]);
   const byActor = groupBy(watched, e => e.actors);
   const byDirector = groupBy(watched, e => e.directors);
+  const byWriter = groupBy(watched, e => e.writers || []);
 
   const rankedServices = Object.entries(byService).map(([name, titles]) => ({
     name, titles, count: titles.length,
@@ -990,6 +1012,7 @@ function renderUebersicht(){
   }
   const actorRanks = rankPeople(byActor, ACTOR_MIN);
   const directorRanks = rankPeople(byDirector, DIRECTOR_MIN);
+  const writerRanks = rankPeople(byWriter, WRITER_MIN);
 
   // ── 1. Streaming-Dienste ──
   addSection(root, "Streaming-Dienste im Vergleich", `Sortiert nach Ø-Bewertung deiner gesehenen Titel`);
@@ -1032,6 +1055,13 @@ function renderUebersicht(){
   root.appendChild(twoCol);
   addPeopleSection(twoCol, "Top Schauspieler:innen", actorRanks, 15);
   addPeopleSection(twoCol, "Top Regisseur:innen", directorRanks, 10);
+
+  // ── 5b. Drehbuchautor:innen (sortierbar) ──
+  if(Object.keys(byWriter).length){
+    const writerWrap = document.createElement("div");
+    root.appendChild(writerWrap);
+    addPeopleSection(writerWrap, "Top Drehbuchautor:innen", writerRanks, 10);
+  }
 
   // ── 6. Konsistenz ──
   addSection(root, "Konsistenz der Streaming-Dienste", "σ = Standardabweichung · kleiner Wert = konstant gute Qualität");
@@ -1191,10 +1221,10 @@ function addPeopleSection(container, title, ranks, topN){
 
 // Trag hier deine Firebase-Projekt-Konfiguration ein (siehe README, Abschnitt "Match-Funktion einrichten"):
 const FIREBASE_CONFIG = {
-  apiKey: "AIzaSyDAMrqsvNZ0huMIhW_nolsKaZTOikB8CXc",
-  authDomain: "whattowatch-f5d33.firebaseapp.com",
-  databaseURL: "https://whattowatch-f5d33-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "whattowatch-f5d33",
+  apiKey: "",
+  authDomain: "",
+  databaseURL: "",
+  projectId: "",
 };
 
 let matchDb = null;
