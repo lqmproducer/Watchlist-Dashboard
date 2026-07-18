@@ -148,9 +148,10 @@ select.select{width:auto;padding-right:28px;cursor:pointer;}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px;}
 .card{
   background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);
-  overflow:hidden;cursor:pointer;position:relative;transition:transform .15s, border-color .15s;
+  overflow:hidden;cursor:pointer;transition:transform .15s, border-color .15s;
 }
 .card:hover{transform:translateY(-3px);border-color:var(--teal);}
+.card-media{position:relative;}
 .card-img, .card-ph{width:100%;aspect-ratio:2/3;object-fit:cover;display:block;background:var(--panel-2);}
 .card-ph{display:flex;align-items:center;justify-content:center;font-size:28px;}
 .card-body{padding:9px 10px 11px;}
@@ -170,11 +171,11 @@ select.select{width:auto;padding-right:28px;cursor:pointer;}
   font-size:14px;cursor:pointer;}
 .bm-btn.on{background:var(--amber);border-color:var(--amber);}
 
-.coll-collage{display:grid;width:100%;aspect-ratio:2/3;background:var(--panel-2);}
-.coll-collage.n1{grid-template-columns:1fr;}
-.coll-collage.n2{grid-template-columns:1fr 1fr;}
-.coll-collage.n3, .coll-collage.n4{grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;}
-.coll-collage img{width:100%;height:100%;object-fit:cover;}
+.coll-collage{display:grid;width:100%;background:var(--panel-2);}
+.coll-collage.n1{grid-template-columns:1fr;aspect-ratio:2/3;}
+.coll-collage.n2{grid-template-columns:1fr 1fr;aspect-ratio:1/1;}
+.coll-collage.n3, .coll-collage.n4{grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;aspect-ratio:1/1;}
+.coll-collage img{width:100%;height:100%;object-fit:cover;display:block;}
 .coll-collage:empty::before{content:"🗂️";display:flex;align-items:center;justify-content:center;
   height:100%;font-size:30px;}
 
@@ -371,6 +372,7 @@ select.select{width:auto;padding-right:28px;cursor:pointer;}
 @media(max-width:520px){
   .detail-hero{flex-direction:column;}
   .detail-hero img, .detail-hero .match-card-ph{width:100%;aspect-ratio:3/2;}
+  .detail-hero .coll-collage{width:100% !important;}
 }
 </style>
 </head>
@@ -739,9 +741,28 @@ function obsidianLink(path){
 }
 
 // ═══════════════ DETAIL-MODAL ═══════════════
+let lockedScrollY = 0;
+
+function lockBodyScroll(){
+  lockedScrollY = window.scrollY;
+  document.body.style.position = "fixed";
+  document.body.style.top = `-${lockedScrollY}px`;
+  document.body.style.left = "0";
+  document.body.style.right = "0";
+  document.body.style.width = "100%";
+}
+function unlockBodyScroll(){
+  document.body.style.position = "";
+  document.body.style.top = "";
+  document.body.style.left = "";
+  document.body.style.right = "";
+  document.body.style.width = "";
+  window.scrollTo(0, lockedScrollY);
+}
+
 function closeDetailModal(){
   document.getElementById("detailModal").classList.remove("visible");
-  document.body.style.overflow = "";
+  unlockBodyScroll();
 }
 document.getElementById("detailModalClose").addEventListener("click", closeDetailModal);
 document.getElementById("detailModal").addEventListener("click", (ev) => {
@@ -753,7 +774,7 @@ function openDetailModal(html){
   document.getElementById("detailModalContent").innerHTML = html;
   document.getElementById("detailModal").classList.add("visible");
   document.getElementById("detailModalBox").scrollTop = 0;
-  document.body.style.overflow = "hidden"; // Hintergrund darf nicht mitscrollen (iOS-Bug bei fixed Overlays)
+  lockBodyScroll(); // iOS-sicherer Scroll-Lock: Hintergrund kann bei offenem Modal nicht mehr "durchgezogen" werden
 }
 
 function ratingChipsHtml(e){
@@ -831,7 +852,7 @@ function openCollectionDetail(c){
 
   openDetailModal(`
     <div class="detail-hero">
-      <div class="coll-collage n${Math.min(c.images.length,4)}" style="width:180px;flex-shrink:0;aspect-ratio:2/3;">
+      <div class="coll-collage n${Math.min(c.images.length,4)}" style="width:180px;flex-shrink:0;">
         ${c.images.slice(0,4).map(src=>`<img src="${src}" loading="lazy">`).join("")}
       </div>
       <div class="detail-body">
@@ -867,8 +888,10 @@ function renderCard(e){
     openMovieDetail(e);
   });
 
-  if(e.image) card.innerHTML += `<img class="card-img" src="${e.image}" alt="" loading="lazy">`;
-  else card.innerHTML += `<div class="card-ph">${e.type.split(" ")[0]}</div>`;
+  const media = document.createElement("div");
+  media.className = "card-media";
+  if(e.image) media.innerHTML = `<img class="card-img" src="${e.image}" alt="" loading="lazy">`;
+  else media.innerHTML = `<div class="card-ph">${e.type.split(" ")[0]}</div>`;
 
   const bmBtn = document.createElement("div");
   bmBtn.className = "bm-btn" + (e.bookmarked ? " on" : "");
@@ -882,20 +905,21 @@ function renderCard(e){
     bmBtn.classList.toggle("on", e.bookmarked);
     bmBtn.textContent = e.bookmarked ? "🔖" : "🏷️";
   });
-  card.appendChild(bmBtn);
+  media.appendChild(bmBtn);
 
   const badge = document.createElement("div");
   badge.className = badgeClass(e.status);
   badge.textContent = badgeLabel(e.status);
-  card.appendChild(badge);
+  media.appendChild(badge);
 
   if(e.fsk != null){
     const fskBadge = document.createElement("div");
     fskBadge.className = "fsk-badge";
     fskBadge.style.background = fskColor(e.fsk);
     fskBadge.textContent = `FSK ${e.fsk}`;
-    card.appendChild(fskBadge);
+    media.appendChild(fskBadge);
   }
+  card.appendChild(media);
 
   const body = document.createElement("div");
   body.className = "card-body";
@@ -1256,10 +1280,10 @@ function addPeopleSection(container, title, ranks, topN){
 
 // Trag hier deine Firebase-Projekt-Konfiguration ein (siehe README, Abschnitt "Match-Funktion einrichten"):
 const FIREBASE_CONFIG = {
-  apiKey: "AIzaSyDAMrqsvNZ0huMIhW_nolsKaZTOikB8CXc",
-  authDomain: "whattowatch-f5d33.firebaseapp.com",
-  databaseURL: "https://whattowatch-f5d33-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "whattowatch-f5d33",
+  apiKey: "",
+  authDomain: "",
+  databaseURL: "",
+  projectId: "",
 };
 
 let matchDb = null;
